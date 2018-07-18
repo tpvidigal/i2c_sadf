@@ -57,55 +57,6 @@
 --
 -----------------------------------------------------------------------------
 --
--- Actions
---
--- Notes:
--- *  -> : indicates transition
--- *  or : indicates alternatives (selection)
--- * |=> : indicates sequential connection (buffer)
--- * <=> : indicates parallel synchonized relation (stream)
---
--- Base actions
--- * Bit_transfer:   SCL 0->1
--- * Bit_may change: SCL 1->0
--- * Bit_goes_to_1:  SDA X->1
--- * Bit_goes_to_0:  SDA X->0
--- 
--- Derived actions
--- * START:     SCL 1, SDA 1 |=> Bit_goes_to_0
--- * STOP :     SCL 1, SDA 0 |=> Bit_goes_to_1
--- * Condition: START or STOP
--- * Release:   SCL 0, Bit_goes_to_1 |=> Bit_transfer |=> Bit_may_change
--- * Force_0:   SCL 0, Bit_goes_to_0 |=> Bit_transfer |=> Bit_may_change
--- * Set_value: Relase or Force_0
---
--- Device Actions
--- * Write:     repeat 8 (Set_value) |=> Release
--- * Read:      repeat 8 (Release)
--- * Read_ACK:  Read |=> Release
--- * Read_NACK: Read |=> Force 0
---
--- System Actions
--- * Slave_NACK:  Master.Write <=>  Slave.Read_NACK
--- * Slave_ACK:   Master.Write <=>  Slave.Read_ACK
--- * Master_NACK: Slave.Write  <=> Master.Read_NACK
--- * Master_ACK:  Slave.Write  <=> Master.Read_ACK
--- * post_NACK:   Slave_NACK or Master_NACK |=> Master.Condition
---
------------------------------------------------------------------------------
---
--- Properties
---
--- General
--- * Devices must release SDA line while other is writting
--- * If SCL is HIGH, SDA can't change (START/STOP conditions are exceptions)
--- * Slave must be ready for START/STOP condition at all time
--- * After a NACK (received or sent), Master must send a START/STOP condition
--- * Slave must ACK if Master sends it's address after a START condition
--- * While a device reads, the writer continues until reader NACKs
---
------------------------------------------------------------------------------
---
 -- SADF chart for I2C Slave
 --
 -- Notes:
@@ -116,11 +67,11 @@
 --                        |  ,-----,       |
 --                        |  |     v       v
 --       [K0]-----,       [K2]    [K3]    [K4]
---        ^       |       ^  |    ^  |    ^  |
---        |       v       |  |    |  |    |  |
---        |-------(D0)----'--|----'--|----'  |
---        |       ^  ^       |       |       |
---        v       |  |       |       |       |
+--                |       ^  |    ^  |    ^  |
+--                v       |  |    |  |    |  |
+--                (D0)----'--|----'--|----'  |
+--                ^  ^       |       |       |
+--                |  |       |       |       |
 --       [K1]-----'  '-------'-------'-------'
 --
 -- [K0]: START condition detector
@@ -140,25 +91,11 @@
 --   > K4: if slave sends NACK
 --
 -----------------------------------------------------------------------------
---
--- SADF chart for I2C Master
---
---
---                       ,----------------,
---                       |  ,-----,       |
---                       |  |     v       v
---       [K1]    [K0]--->[K2]    [K3]    [K4]
---        | ^     ^ |     | |       |       |
---        | '-----|-'-----|-'-------'-------'
---        |       |       |
---                '-------'
---
------------------------------------------------------------------------------
 
-module I2C (
+module I2CSlave (
 
   -- Example to show I2C operating
-  runI2CExample
+  runI2CSlaveExample
 
 ) where
 
@@ -169,15 +106,36 @@ import Data.Bits((.&.), (.|.), xor)
 
 
 ---------------------------------------------------------
--- 
+-- Types and definitions
 ---------------------------------------------------------
 
+--------------------------------------------
+-- Scenario (rates) for a condition kernel
+--
+-- inRates = Consumption rates
+--    1: lines' (SDA and SCL) values
+-- outRates = Production rates
+--    1: condition occurred
+-- execFunc = Function that models operation
+--    Arg 1:  previous lines' values
+--    Arg 2:  lines' values token
+--    Return: condition token
+data scenarCondition = scenarCondition {
+    inRates  :: Int,
+    outRates :: Int,
+    execFunc :: Int a => (a,a) -> (a,a) -> a
+} deriving (Show)
 
 
 
+---------------------------------------------------------
+-- START condition Kernel
+---------------------------------------------------------
 
+conditionStart :: Int a => (a,a) -> (a,a) -> a
+conditionStart
 
-
+startKernel :: Numb => Signal 
 
 
 
