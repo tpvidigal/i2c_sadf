@@ -110,8 +110,8 @@ import Data.Bits((.&.), (.|.), xor)
 ---------------------------------------------------------
 
 -- | Slave address to be considered
-slaveAddress :: Int
-slaveAddress = 1;
+SLAVEADDRESS :: Int
+SLAVEADDRESS = 1;
 
 -- | Scenario (rates) for a condition kernel
 --
@@ -125,30 +125,32 @@ slaveAddress = 1;
 --    Arg 2:  lines' values token
 --    Return: condition token
 data ScenarCondition = ScenarCondition {
-    inRates  :: (Int,Int),     -- ^ SDA and SCL rates
-    outRates :: Int,           -- ^ Condition rate
-    execFunc :: Int a => (a,a) -- ^ Past SDA/SCL
-                      -> (a,a) -- ^ New SDA/SCL
-                      -> a     -- ^ Condition
+    inRates  :: (Int,Int), 
+    outRates :: Int, 
+    execFunc :: Int a => (a,a) 
+                      -> (a,a) 
+                      -> a 
 } deriving (Show)
 
--- | Scenario (rates) for a address operation kernel
+-- | Scenario (rates) for address operation kernel
 --
 -- inRates = Consumption rates
---    1: SDA line value
---    2: SCL line value
+--    1: Feedback of process
+--    2: SDA line value
 -- outRates = Production rates
---    1: condition occurred
+--    1: New feedback
+--    2: read operation (or write)
 -- execFunc = Function that models operation
---    Arg 1:  previous lines' values
---    Arg 2:  lines' values token
---    Return: condition token
-data ScenarCondition = ScenarCondition {
-    inRates  :: (Int,Int),     -- ^ SDA and SCL rates
-    outRates :: Int,           -- ^ Condition rate
-    execFunc :: Int a => (a,a) -- ^ Past SDA/SCL
-                      -> (a,a) -- ^ New SDA/SCL
-                      -> a     -- ^ Condition
+--    Arg 1:  Counter and address feedback
+--    Arg 2:  SDA values token
+--    Retr 1: feedback with counter and address token
+--    Retr 2: read operation (or write) token
+data ScenarOpAddress = ScenarOpAddress {
+    inRates  :: (Int,Int),
+    outRates :: (Int,Int),
+    execFunc :: Int a => (a,a) 
+                      -> a 
+                      -> ((a,a),a) 
 } deriving (Show)
 
 
@@ -158,9 +160,12 @@ data ScenarCondition = ScenarCondition {
 ---------------------------------------------------------
 
 -- | START condition definition
-conditStart :: Int a => (a,a) -- ^ Past values of SDA and SCL
-                     -> (a,a) -- ^ New values of SDA and SCL
-                     -> a     -- ^ START condition (or not)
+-- Arg 1:  Past values of SDA and SCL
+-- Arg 2:  New values of SDA and SCL
+-- Return: START condition (or not)
+conditStart :: Int a => (a,a) 
+                     -> (a,a)
+                     -> a
 conditStart pastInputs newInputs = start
   where start
     | pastInputs != (1,1) = 0
@@ -168,21 +173,26 @@ conditStart pastInputs newInputs = start
     | otherwise           = 0
 
 -- | START condition scenario(s)
-scenarStart :: ScenarCondition
-scenarStart = ScenarCondition {
-    inRates  = (1,1),      -- ^ Always require new SDA/SCL values
-    outRates = 1,          -- ^ Always generate the condition flag
-    execFunc = conditStart -- ^ Always act the same way
+-- Always require new SDA/SCL values
+-- Always generate the condition flag
+-- Always act the same way
+getScenarStart :: ScenarCondition
+getScenarStart = ScenarCondition {
+    inRates  = (1,1), 
+    outRates = 1, 
+    execFunc = conditStart 
 }
 
 -- | Create START kernel
-kernelStart :: Int a => Signal (a,a) -- ^ SDA and SCL values
-                     -> Signal a     -- ^ If condition happened
+-- Arg 1:  SDA and SCL values
+-- Return: If condition happened
+kernelStart :: Int a => Signal (a,a)
+                     -> Signal a
 kernelStart newInputs = start
   where start      = kernel21SADF scenar pastInputs newInputs
         pastInputs = delaySADF initInputs newInputs
         initInputs = Signal (1,1)
-        scenar     = Signal scenarStart
+        scenar     = Signal getScenarStart
 
 
 
@@ -191,9 +201,12 @@ kernelStart newInputs = start
 ---------------------------------------------------------
 
 -- | STOP condition definition
-conditStop :: Int a => (a,a) -- ^ Past values of SDA and SCL
-                    -> (a,a) -- ^ New values of SDA and SCL
-                    -> a     -- ^ STOP condition (or not)
+-- Arg 1:  Past values of SDA and SCL
+-- Arg 2:  New values of SDA and SCL
+-- Return: STOP condition (or not)
+conditStop :: Int a => (a,a)
+                    -> (a,a)
+                    -> a
 conditStop pastInputs newInputs = stop
   where stop
     | pastInputs != (0,1) = 0
@@ -201,21 +214,26 @@ conditStop pastInputs newInputs = stop
     | otherwise           = 0
 
 -- | STOP condition scenario(s)
-scenarStop :: ScenarCondition
-scenarStop = ScenarCondition {
-    inRates  = (1,1),     -- ^ Always require new SDA/SCL values
-    outRates = 1,         -- ^ Always generate the condition flag
-    execFunc = conditStop -- ^ Always act the same way
+-- Always require new SDA/SCL values
+-- Always generate the condition flag
+-- Always act the same way
+getScenarStop :: ScenarCondition
+getScenarStop = ScenarCondition {
+    inRates  = (1,1),
+    outRates = 1,
+    execFunc = conditStop
 }
 
 -- | Create START kernel
-kernelStop :: Int a => Signal (a,a) -- ^ SDA and SCL values
-                    -> Signal a     -- ^ If condition happened
+-- Arg 1:  SDA and SCL values
+-- Return: If condition happened
+kernelStop :: Int a => Signal (a,a)
+                    -> Signal a
 kernelStop newInputs = stop
   where stop       = kernel21SADF scenar pastInputs newInputs
-        pastInputs = delaySADF Signal initInputs newInputs
+        pastInputs = delaySADF initInputs newInputs
         initInputs = Signal (1,1)
-        scenar     = Signal scenarStop
+        scenar     = Signal getScenarStop
 
 
 
@@ -227,42 +245,77 @@ kernelStop newInputs = stop
 -- It mantains a fixed address that identifies the slave
 -- When a new SDA value arrives (positive edge of SCL),
 -- the feedback values are used
-opAddress :: Int a => a             -- ^ Fixed adress of the slave
-                   -> (a,a)         -- ^ Past counter and address values
-                   -> a             -- ^ SDA line value (posedge of SCL)
-                   -> ((a,a), a) -- ^ Feedback and output values
+opAddress :: Int a -> (a,a)
+                   -> a 
+                   -> ((a,a), a)
 opAddress (counter, pastAddress) sda = (feedback, readOp)
   where readOp   = sda
-        feedback = (counter+1, address)
-        address  = pastAddress + sda * (2^counter)
+        feedback
+          | counter==8 = (0,address)
+          | otherwise  = (counter+1,address)
+        address
+          | counter==8 = sda
+          | otherwise  = pastAddress + sda * (2^counter)
 
 -- | Address operation scenario(s)
-scenarOpAddress :: (Int, Int)      -- ^ Bits counted and address received
-                -> ScenarOpAddress -- ^ Next scenario
-scenarOpAddress (8,address)
-  | address == slaveAddress = ScenarOpAddress {
-                                inRates  = 1,
-                                outRates = 1,
-                                execFunc = opAddress
-                              }
-  | otherwise               = ScenarOpAddress {
-                                inRates  = 1,
-                                outRates = 0,
-                                execFunc = opAddress
-                              }
-scenarOpAddress (_,_) = ScenarOpAddress {
-                          inRates  = 1,
-                          outRates = 0,
-                          execFunc = opAddress
-                        }
+-- Always receive feedback (bits counted and address) and
+-- return the next scenario depending of it's values.
+--
+-- If address matches: Send operaion token
+-- Default Scenario:   Don't output token
+getScenarOpAddress :: (Int, Int)
+                -> ScenarOpAddress
+getScenarOpAddress (counter, address)
+  | (counter==7) & (address==SLAVEADDRESS) =
+        ScenarOpAddress {
+            inRates  = (1,1),
+            outRates = (1,1),
+            execFunc = opAddress
+        }
+  | otherwise =
+        ScenarOpAddress {
+            inRates  = (1,1),
+            outRates = (1,0),
+            execFunc = opAddress
+        }
 
 -- | Create operation address kernel
-kernelOpAddress :: ScenarAddress a -- ^ Scenario
-                -> (Int,Int)       -- ^ SDA and SCL values
-                -> Int             -- ^ Read operation (or write)
-kernelOpAddress scenar newInputs = (match, readOp)
-  where readOp = kernel21SADF scenar newInputs
+-- Arg 1:  Scenario
+-- Arg 2:  SDA value (posedge of SCL)
+-- Retr 1: Feedback of address operation
+-- Retr 2: Operation token
+kernelOpAddress :: Int a => ScenarAddress
+                         -> Signal a
+                         -> ((Signal a, Signal a), Signal a)
+kernelOpAddress scenar sda = (feedback, readOp)
+  where (feedback, readOp) = kernel22SADF scenar pastFeedback sda
+        pastFeedback       = delaySADF Signal initFeedback feedback
+        initFeedback       = Signal ((8,0),0)
 
+
+
+---------------------------------------------------------
+-- Control Detector
+---------------------------------------------------------
+
+-- | 
+-- Inputs tokens
+-- * Condition tuplet
+--     > START condition
+--     > STOP condition
+-- * Operation tuplet
+--     > Address operation feedback
+--     > Read operation received NACK
+--     > Write operation NACK requested
+--
+-- Outputs scenarios
+-- * kernelOpAddress
+-- * kernelOpRead
+-- * kernelOpWrite
+detectControl :: Int a => Signal (Signal a, Signal a)
+                       -> Signal (Signal a, Signal a, Signal a)
+                       -> (ScenarOpAddress, ScenarOpRead, ScenarOpWrite)
+detectControl = detector23SADF 
 
 
 
