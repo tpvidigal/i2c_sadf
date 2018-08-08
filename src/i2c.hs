@@ -65,17 +65,13 @@
 --   > START condition monitor
 --   > STOP condition monitor
 --
--- * There will be 3 complex kernels. Each one requires a detector to model
+-- * There will be 4 operation kernels. Each one requires a detector to model
 --   the FSM they must obey. Also, they watch conditions to reset or start
 --   their operation.
 --   > Address + read/write selector monitor (OpAddress)
+--   > ACK responder if address matches (AckResponder)
 --   > Master read operator (OpRead)
 --   > Master write operator (OpWrite)
---
--- * For simplicity, a stand-alone simple kernel will wait OpAddress output.
---   When it receives the token, it will ACK the master and send a token to
---   the corresponding operation (OpRead or OpWrite)
---   > ACK responder
 --
 -----------------------------------------------------------------------------
 
@@ -124,7 +120,7 @@ data ScenarCondition = ScenarCondition {
 -- inRates = Consumption rates
 --    1: Feedback of process
 --    2: Condition signal
---    3: SDA line value
+--    3: SDA line value (posedge of SCL)
 -- outRates = Production rates
 --    1: New feedback
 --    2: read operation (or write)
@@ -141,6 +137,25 @@ data ScenarOpAddress = ScenarOpAddress {
                       -> (a,a)
                       -> a
                       -> ((a,a),a) 
+} deriving (Show)
+
+-- | Scenario (rates) for ack responder kernel
+--
+-- inRates = Consumption rates
+--    1: Matched address operation
+--    2: Condition signal
+--    3: Posedge of SCL
+-- outRates = Production rates
+--    1: Read operation
+--    2: Write operation
+-- execFunc = Function that models operation
+data ScenarAckResponder = ScenarAckResponder {
+    inRates  :: (Int,Int,Int),
+    outRates :: (Int,Int,Int),
+    execFunc :: Int a => a
+                      -> (a,a)
+                      -> a
+                      -> (a,a,a)
 } deriving (Show)
 
 
@@ -235,6 +250,228 @@ kernelStop newInputs = stop
 idleScenarOpAddress = ScenarOpAddress {
     inRates  = (0,1,0),
     outRates = (0,0),
+    execFunc = opAddressMonitor
+}
+
+-- | Address operation running scenario
+runScenarOpAddress = ScenarOpAddress {
+    inRates  = (1,0,1),
+    outRates = (1,0),
+    execFunc = opAddressMonitor
+}
+
+-- | Address operation match scenario
+matchScenarOpAddress = ScenarOpAddress {
+    inRates  = (1,0,1),
+    outRates = (0,0),
+    execFunc = opAddressOperation
+}
+
+-- | Address operation ACK scenario
+ackScenarOpAddress = ScenarOpAddress {
+    inRates  = (0,1,0),
+    outRates = (0,1),
+    execFunc = opAddressOperation
+}
+
+-- | Next scenario(s)
+-- Inputs
+-- * Current scenario (state)
+-- * Feedback: bits counted and address
+-- * Condition: start and stop
+-- Return
+-- * Next scenario
+nextScenarOpAddress :: ScenarOpAddress
+                   -> (Int, Int)
+                   -> (int, int)
+                   -> ScenarOpAddress
+nextScenarOpAddress idleScenarOpAddress _ (start,_)
+  | start == 1                             = runScenarOpAddress
+  | otherwise                              = idleScenarOpAddress
+nextScenarOpAddress runScenarOpAddress (counter, address) (start,stop)
+  | stop == 1                              = idleScenarOpAddress
+  | (counter==7) & (address==SLAVEADDRESS) = matchScenarOpAddress
+  | otherwise                              = runScenarOpAddress;
+nextScenarOpAddress matchScenarOpAddress _ (start,stop)
+  | start == 1                             = idleScenarOpAddress
+  | stop == 1                              = idleScenarOpAddress
+  | otherwise                              = ackScenarOpAddress
+nextScenarOpAddress ackScenarOpAddress _ (start,stop)
+  | start == 1                             = runScenarOpAddress
+  | stop == 1                              = idleScenarOpAddress
+  | otherwise                              = ackScenarOpAddress
+
+-- | Detector for FSM of kernel
+-- Inputs tokens
+-- * Operation tuplet
+--     > Address operation feedback
+-- * Condition tuplet
+--     > START condition
+--     > STOP condition
+-- * Wires tuplet
+--     > SDA line
+--     > SCL line
+--
+-- Outputs scenarios
+-- * kernelOpAddress
+detectOpAddress :: Int a => Signal (a,a)
+                         -> Signal (a,a)
+                         -> Signal ((a,a),a)
+                         -> ScenarOpAddress
+detectOpAddress = detector31SADF inRates stateTrans scenarSelect initState
+  where inRates      = (1,0,0)
+        stateTrans   = nextScenarOpAddress
+        scenarSelect = stateTrans
+        initState    = (inRates, idleScenarOpAddress)
+
+nextOpAddress = nextScenarOpAddress 
+
+
+
+--------------------------------------------------------
+-- Address Operation Kernel
+---------------------------------------------------------
+
+-- | Kernel operation definition
+-- It mantains a fixed address that identifies the slave
+-- When a new SDA value arrives (positive edge of SCL),
+-- the feedback values are used
+opAddress :: Int a -> (a,a)
+                   -> (a,a)
+                   -> a 
+                   -> ((a,a), a)
+opAddress (counter, pastAddress) (start,stop) sda = (feedback, readOp)
+  where readOp = sda
+        feedback
+          | start  ==1 = (8,0)
+          | stop   ==1 = (8,0)
+          | counter==8 = (0,address)
+          | otherwise  = (counter+1,address)
+        address
+          | counter==8 = sda
+          | otherwise  = pastAddress + sda * (2^counter)
+
+-- | Create kernel
+-- Arg 1:  Scenario
+-- Arg 2:  Condition signals
+-- Arg 3:  SDA value (posedge of SCL)
+-- Retr 1: Feedback of address operation
+-- Retr 2: Operation token
+kernelOpAddress :: Int a => ScenarAddress
+                         -> Signal (a, a)
+                         -> Signal a
+                         -> ((Signal a, Signal a), Signal a)
+kernelOpAddress scenar conditions sda = (feedback, readOp)
+  where (feedback, readOp) = kernel32SADF scenar pastFeedback conditions sda
+        pastFeedback       = delaySADF Signal initFeedback feedback
+        initFeedback       = Signal ((8,0),0)
+
+
+
+--------------------------------------------------------
+-- Ack Responder Detector
+---------------------------------------------------------
+
+-- | Ack Responder idle scenario
+idleScenarAckResponder = ScenarAckResponder {
+    inRates  = (1,0,1), 
+    outRates = (0,0,1), 
+    execFunc = ackResponder
+}
+
+-- | Ack Responder read scenario
+readScenarAckResponder = ScenarAckResponder {
+    inRates  = (0,1), 
+    outRates = (1,0,0), 
+    execFunc = ackResponder
+}
+
+-- | Ack Responder write scenario
+writeScenarAckResponder = ScenarAckResponder {
+    inRates  = (0,1), 
+    outRates = (0,1,0), 
+    execFunc = ackResponder
+}
+
+-- | Next scenario(s)
+-- Inputs
+-- * Current scenario (state)
+-- * Matched address operation
+-- * Condition signal
+-- Return
+-- * Next scenario
+nextScenarAckResponder :: ScenarAckResponder
+                       -> Int
+                       -> (Int,Int)
+                       -> ScenarAckResponder
+nextScenarAckResponder idleScenarAckResponder (start,stop) readOp
+  | start ==1 = idleScenarAckResponder
+  | stop  ==1 = idleScenarAckResponder
+  | readOp==1 = readScenarAckResponder
+  | otherwise = writeScenarAckResponder
+nextScenarAckResponder _ (start,stop) _
+  | start ==1 = idleScenarAckResponder
+  | stop  ==1 = idleScenarAckResponder
+
+-- | Detector for FSM of kernel
+-- Inputs tokens
+-- * Matched address operation
+--
+-- Outputs scenarios
+-- * kernelAckResponder
+detectAckResponder :: Int a => Signal a
+                            -> Signal (a,a)
+                            -> ScenarAckResponder
+detectAckResponder opRead conditions = nextScenario
+  where nextScenario = detector21SADF inRates stateTrans scenarSelect initState opRead conditions
+        inRates
+          | nextScenario == idleScenarAckResponder = (1,0)
+          | otherwise                              = (0,1)
+        stateTrans   = nextScenarAckResponder
+        scenarSelect = stateTrans
+        initState    = ((1,0), idleScenarAckResponder)
+
+
+
+--------------------------------------------------------
+-- Ack Responder Kernel
+---------------------------------------------------------
+
+
+-- | Kernel operation definition
+-- It simply waits the kernelOpAddress token to send a
+-- ACK signal (SDA = 0).
+ackResponder :: Int a => a
+                      -> (a,a)
+                      -> (a,a)
+ackResponder readOp (start,stop)
+  | start ==1 = (0,0)
+  | stop  ==1 = (0,0)
+  | readOp==1 = (1,0)
+  | otherwise = (0,1)
+
+-- | Create kernel
+-- Arg 1:  Scenario
+-- Arg 2:  Matched address operation
+-- Arg 3:  Conditions
+-- Retr 1: Read operation required
+-- Retr 2: Write operation required
+kernelAckResponder :: Int a => ScenarAckResponder
+                            -> Signal a
+                            -> Signal (a,a)
+                            -> (Signal a, Signal a)
+kernelAckResponder = kernel22SADF
+
+
+
+---------------------------------------------------------
+-- Master Read Operation Detector
+---------------------------------------------------------
+
+-- | Address operation idle scenario
+idleScenarOpAddress = ScenarOpAddress {
+    inRates  = (0,1,0),
+    outRates = (0,0),
     execFunc = opAddress
 }
 
@@ -287,15 +524,15 @@ nextScenarOpAddress matchScenarOpAddress _ (start,_)
 --
 -- Outputs scenarios
 -- * kernelOpAddress
-detectOpAddress :: Int a => Signal (Signal a, Signal a)
-                       -> Signal (Signal a, Signal a)
-                       -> Signal (Signal (Signal a, Signal a), Signal a)
-                       -> ScenarOpAddress
+detectOpAddress :: Int a => Signal (a,a)
+                         -> Signal (a,a)
+                         -> Signal ((a,a),a)
+                         -> ScenarOpAddress
 detectOpAddress = detector31SADF inRates stateTrans scenarSelect initState
   where inRates      = (1,0,0)
         stateTrans   = nextScenarOpAddress
         scenarSelect = stateTrans
-        initState    = (inRates, initScenarOpAddress)
+        initState    = (inRates, idleScenarOpAddress)
 
 nextOpAddress = nextScenarOpAddress 
 
@@ -331,13 +568,16 @@ opAddress (counter, pastAddress) (start,stop) sda = (feedback, readOp)
 -- Retr 1: Feedback of address operation
 -- Retr 2: Operation token
 kernelOpAddress :: Int a => ScenarAddress
-                         -> Signal (Signal a, Signal a)
+                         -> Signal (a, a)
                          -> Signal a
                          -> ((Signal a, Signal a), Signal a)
 kernelOpAddress scenar conditions sda = (feedback, readOp)
   where (feedback, readOp) = kernel32SADF scenar pastFeedback conditions sda
         pastFeedback       = delaySADF Signal initFeedback feedback
         initFeedback       = Signal ((8,0),0)
+
+
+
 
 
 
