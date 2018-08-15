@@ -22,8 +22,6 @@ module I2CSlaveStop (
 
 ) where
 
-import ForSyDe.Shallow
-import SADF
 import I2CSlaveGlobals
 
 

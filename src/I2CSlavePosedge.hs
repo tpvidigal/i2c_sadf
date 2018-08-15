@@ -23,10 +23,7 @@ module I2CSlavePosedge (
 
 ) where
 
-import ForSyDe.Shallow
-import SADF
 import I2CSlaveGlobals
-import Data.Bits((.&.), (.|.), xor)
 
 
 
