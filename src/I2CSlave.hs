@@ -70,7 +70,16 @@
 --   is detected, it generates a token with the SDA value sampled
 --   > Data value at posedge (DataPosedge)
 --
--- * There will be 3 operation kernels. Each one requires a detector to model
+-- * There will be 1 kernel to monitor the address being transmitted after a
+--   START condition. If the 7 bits received match the slave address, the 8th
+--   bit is send as a token and determines the operation that will be performed
+--
+--
+--
+--
+--
+--
+-- * There will be 2 operation kernels. Each one requires a detector to model
 --   the FSM they must obey. Also, they watch conditions to reset or start
 --   their operation. Finally, they define the SDA value of slave to control
 --   acknowledge and data signals.

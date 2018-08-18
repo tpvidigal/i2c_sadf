@@ -85,38 +85,44 @@ data ScenarAddressMonitor = ScenarAddressMonitor {
                       -> ((a,a),a) 
 } deriving (Show)
 
-
-
-
-
-
-
-
-
-
-
-
--- | Scenario (rates) for read/write operation kernels
+-- | Scenario (rates) for read operation kernels
 --
 -- inRates = Consumption rates
---    1: Start operation
---    2: Feedback of process
---    3: Condition signal
---    4: SDA line value (posedge of SCL)
---    5: Keep reading signal
+--    1: Feedback counter of process
+--    2: SDA line value (posedge of SCL)
+--    3: Keep reading signal
+-- outRates = Production rates
+--    1: New feedback counter
+--    2: Received byte
+--    3: SDA value from Slave
+-- execFunc = Function that models operation
+data ScenarOpRead = ScenarOpRead {
+    inRates  :: (Int,Int,Int),
+    outRates :: (Int,Int,Int),
+    execFunc :: Int a => a
+                      -> a
+                      -> a
+                      -> (a,a,a) 
+} deriving (Show)
+
+-- | Scenario (rates) for write operation kernels
+--
+-- inRates = Consumption rates
+--    1: Feedback: counter and data
+--    2: SDA line value (posedge of SCL)
+--    3: Byte to send
 -- outRates = Production rates
 --    1: New feedback
---    2: SDA value from Slave
+--    2: Done signal
+--    3: SDA value from Slave
 -- execFunc = Function that models operation
-data ScenarOpRW = ScenarOpRW {
-    inRates  :: (Int,Int,Int,Int,Int),
-    outRates :: (Int,Int),
-    execFunc :: Int a => a
-                      -> (a,a) 
-                      -> (a,a)
+data ScenarOpWrite = ScenarOpWrite {
+    inRates  :: (Int,Int,Int),
+    outRates :: (Int,Int,Int),
+    execFunc :: Int a => (a,a)
                       -> a
                       -> a
-                      -> ((a,a),a) 
+                      -> ((a,a),a,a) 
 } deriving (Show)
 
 
