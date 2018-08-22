@@ -71,6 +71,7 @@ ackScenarOpRead = ScenarOpRead {
 -- | Next scenario(s)
 -- Inputs
 -- * Current scenario (state)
+-- * SCL posedge
 -- * Condition: start and stop
 -- * Feedback counter
 -- * Keep reading
@@ -78,40 +79,41 @@ ackScenarOpRead = ScenarOpRead {
 -- Return
 -- * Next scenario
 nextScenarOpRead :: ScenarOpRead
+                 -> Int
                  -> (Int, Int)
                  -> Int
                  -> Int
                  -> Int
                  -> ScenarOpRead
-nextScenarOpRead idleScenarOpRead _ _ _ readOp
+nextScenarOpRead idleScenarOpRead _ _ _ _ readOp
   | readOp == 1 = startScenarOpRead
   | otherwise   = idleScenarOpRead
-nextScenarOpRead startScenarOpRead (start,stop) _ _ _
+nextScenarOpRead startScenarOpRead _ (start,stop) _ _ _
   | start == 1  = idleScenarOpRead
   | stop == 1   = idleScenarOpRead
   | otherwise   = runScenarOpRead
-nextScenarOpRead runScenarOpRead (start,stop) count _ _
+nextScenarOpRead runScenarOpRead _ (start,stop) count _ _
   | start == 1  = idleScenarOpRead
   | stop == 1   = idleScenarOpRead
   | count == 6  = lastScenarOpRead
   | otherwise   = runScenarOpRead
-nextScenarOpRead lastScenarOpRead (start,stop) _ keep _
+nextScenarOpRead lastScenarOpRead _ (start,stop) _ keep _
   | start == 1  = idleScenarOpRead
   | stop == 1   = idleScenarOpRead
   | keep == 0   = idleScenarOpRead
   | otherwise   = ackScenarOpRead
-nextScenarOpRead ackScenarOpRead (start,stop) _ _ _
+nextScenarOpRead ackScenarOpRead _ (start,stop) _ _ _
   | start == 1  = idleScenarOpRead
   | stop == 1   = idleScenarOpRead
   | otherwise   = runScenarOpRead
 
 -- | Detector's input rate
--- Idle:  Wait matched address operation
--- Other: Watch feedback's counter
-inRatesOpRead :: Int a => ScenarOpRead
-                       -> (a,a,a,a)
-inRatesOpRead idleScenarOpRead = (0,0,0,1)
-inRatesOpRead _                = (1,0,0,0)
+ratesOpRead = (1,0,0,0,0)
+
+-- | Detector's scenario selection
+selectOpRead :: ScenarOpRead
+             -> (Int, [ScenarOpRead])
+selectOpRead scenar = (1, [scenar])
 
 
 
@@ -157,6 +159,7 @@ ackScenarOpWrite = ScenarOpWrite {
 -- | Next scenario(s)
 -- Inputs
 -- * Current scenario (state)
+-- * SCL posedge
 -- * Condition: start and stop
 -- * Feedback: counter and data
 -- * SDA (for ACK from Master)
@@ -164,40 +167,41 @@ ackScenarOpWrite = ScenarOpWrite {
 -- Return
 -- * Next scenario
 nextScenarOpWrite :: ScenarOpWrite
+                 -> Int
                  -> (Int, Int)
                  -> (Int, Int)
                  -> Int
                  -> Int
                  -> ScenarOpWrite
-nextScenarOpWrite idleScenarOpWrite _ _ _ readOp
+nextScenarOpWrite idleScenarOpWrite _ _ _ _ readOp
   | readOp == 0 = startScenarOpWrite
   | otherwise   = idleScenarOpWrite
-nextScenarOpWrite startScenarOpWrite (start,stop) _ _ _
+nextScenarOpWrite startScenarOpWrite _ (start,stop) _ _ _
   | start == 1  = idleScenarOpWrite
   | stop == 1   = idleScenarOpWrite
   | otherwise   = runScenarOpWrite
-nextScenarOpWrite runScenarOpWrite (start,stop) (count,_) _ _
+nextScenarOpWrite runScenarOpWrite _ (start,stop) (count,_) _ _
   | start == 1  = idleScenarOpWrite
   | stop == 1   = idleScenarOpWrite
   | count == 6  = lastScenarOpWrite
   | otherwise   = runScenarOpWrite
-nextScenarOpWrite lastScenarOpWrite (start,stop) _ _ _
+nextScenarOpWrite lastScenarOpWrite _ (start,stop) _ _ _
   | start == 1  = idleScenarOpWrite
   | stop == 1   = idleScenarOpWrite
   | otherwise   = ackScenarOpWrite
-nextScenarOpWrite ackScenarOpWrite (start,stop) _ sda _
+nextScenarOpWrite ackScenarOpWrite _ (start,stop) _ sda _
   | start == 1  = idleScenarOpWrite
   | stop == 1   = idleScenarOpWrite
   | sda == 1    = idleScenarOpWrite
   | otherwise   = runScenarOpWrite
 
 -- | Detector's input rate
--- Idle:  Wait matched address operation
--- Other: Watch feedback's counter
-inRatesOpWrite :: Int a => ScenarOpWrite
-                        -> (a,a,a,a)
-inRatesOpWrite idleScenarOpWrite = (0,0,0,1)
-inRatesOpWrite _                 = (1,0,0,0)
+ratesOpWrite = (1,0,0,0,0)
+
+-- | Detector's scenario selection
+selectOpWrite :: ScenarOpWrite
+              -> (Int, [ScenarOpWrite])
+selectOpWrite scenar = (1, [scenar])
 
 
 
@@ -229,33 +233,35 @@ writeScenarSDAManager = ScenarSDAManager {
 -- | Next scenario(s)
 -- Inputs
 -- * Current scenario (state)
+-- * SCL posedge
 -- * Condition: start and stop
 -- * Matched address operation
 -- Return
 -- * Next scenario
 nextScenarSDAManager :: ScenarSDAManager
-                 -> (Int, Int)
-                 -> Int
-                 -> ScenarSDAManager
-nextScenarSDAManager idleScenarSDAManager _ readOp
+                     -> Int
+                     -> (Int, Int)
+                     -> Int
+                     -> ScenarSDAManager
+nextScenarSDAManager idleScenarSDAManager _ _ readOp
   | readOp == 1 = readScenarSDAManager
   | otherwise   = writeScenarSDAManager
-nextScenarSDAManager readScenarSDAManager (start,stop) _
+nextScenarSDAManager readScenarSDAManager _ (start,stop) _
   | start == 1  = idleScenarSDAManager
   | stop == 1   = idleScenarSDAManager
   | otherwise   = readScenarSDAManager
-nextScenarSDAManager writeScenarSDAManager (start,stop) _
+nextScenarSDAManager writeScenarSDAManager _ (start,stop) _
   | start == 1  = idleScenarSDAManager
   | stop == 1   = idleScenarSDAManager
   | otherwise   = writeScenarSDAManager
 
 -- | Detector's input rate
--- Idle:  Wait matched address operation
--- Other: Watch conditions
-inRatesSDAManager :: Int a => ScenarSDAManager
-                           -> (a,a)
-inRatesSDAManager idleScenarSDAManager = (0,1)
-inRatesSDAManager _                    = (1,0)
+ratesSDAManager = (1,0,0)
+
+-- | Detector's scenario selection
+selectSDAManager :: ScenarSDAManager
+          -> (Int, [ScenarSDAManager])
+selectSDAManager scenar = (1, [scenar])
 
 
 
@@ -265,23 +271,43 @@ inRatesSDAManager _                    = (1,0)
 
 -- | Operations Controller detector
 -- Input tokens
--- * Condition: start and stop
 -- * SDA line value (posedge of SCL)
+-- * Condition: start and stop
+-- * Feedback read
+-- * Feedback write
 -- * Keep reading
 -- * Matched address operation
 -- Output tokens (scenarios)
 -- * Read kernel
 -- * Write kernel
 -- * SDA Manager kernel
-detectOpControl :: Int a => Signal(a,a)
+detectOpControl :: Int a => Signal a
+                         -> Signal (a,a)
+                         -> Signal a
+                         -> Signal (a,a)
                          -> Signal a
                          -> Signal a
-                         -> Signal a
-                         -> (ScenarOpRead,
-                             ScenarOpWrite,
-                             ScenarSDAManager)
-detectOpControl (start,stop) sdaPosedge keepRead readOp = (scenarRead, scenarWrite, scenarSDA)
-  where scenarRead = detector??SADF
+                         -> (Signal ScenarOpRead,
+                             Signal ScenarOpWrite,
+                             Signal ScenarSDAManager)
+detectOpControl allInputs = allOutputs
+  where allInputs     = sdaPosedge conditions fbOpRead fbOpWrite keepRead readOp
+        allOutputs    = (scenarRead, scenarWrite, scenarSDA)
+
+        scenarRead    = detector51SADF ratesOpRead statesOpRead inputsOpRead
+        statesOpRead  = nextScenarOpRead selectOpRead idleScenarOpRead
+        inputsOpRead  = sdaPosedge conditions fbOpRead keepRead readOp
+
+        scenarWrite   = detector51SADF ratesOpWrite statesOpWrite inputsOpWrite
+        statesOpWrite = nextScenarOpWrite selectOpWrite idleScenarOpWrite
+        inputsOpWrite = sdaPosedge conditions fbOpWrite keepRead readOp
+
+        scenarSDA     = detector31SADF ratesSDAManager statesSDA inputsSDA
+        statesSDA     = nextScenarSDAManager selectSDAManager idleScenarSDAManager
+        inputsSDA     = sdaPosedge conditions readOp
+
+
+
 
 
 
