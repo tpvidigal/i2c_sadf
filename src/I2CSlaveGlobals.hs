@@ -70,17 +70,15 @@ data ScenarCondition = ScenarCondition {
 --
 -- inRates = Consumption rates
 --    1: Feedback of process
---    2: Condition signal
---    3: SDA line value (posedge of SCL)
+--    2: SDA line value (posedge of SCL)
 -- outRates = Production rates
 --    1: New feedback
 --    2: Read operation (or write)
 -- execFunc = Function that models operation
 data ScenarAddressMonitor = ScenarAddressMonitor {
-    inRates  :: (Int,Int,Int),
+    inRates  :: (Int,Int),
     outRates :: (Int,Int),
     execFunc :: Int a => (a,a) 
-                      -> (a,a)
                       -> a
                       -> ((a,a),a) 
 } deriving (Show)

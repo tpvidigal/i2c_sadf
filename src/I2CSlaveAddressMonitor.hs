@@ -30,31 +30,93 @@ module I2CSlaveAddressMonitor (
 import I2CSlaveGlobals
 
 
+--------------------------------------------------------
+-- Kernel
+---------------------------------------------------------
+
+-- | Kernel function during idle scenario
+idleFuncAddressMonitor :: Int a -> (a,a)
+                                -> a 
+                                -> ((a,a), a)
+idleFuncAddressMonitor _ _ = ((0,0),0)
+
+-- | Kernel function during start scenario
+startFuncAddressMonitor :: Int a -> (a,a)
+                                 -> a 
+                                 -> ((a,a), a)
+startFuncAddressMonitor _ sdaPosedge = ((0,sdaPosedge),0)
+
+-- | Kernel function during get address scenario
+getFuncAddressMonitor :: Int a -> (a,a)
+                               -> a 
+                               -> ((a,a), a)
+getFuncAddressMonitor (counter, pastAddress) sdaPosedge = (feedback, readOp)
+  where readOp   = sdaPosedge
+        feedback = (counter+1,address)
+        address  = pastAddress + sdaPosedge * (2^counter)
+
+-- | Kernel function during match scenario
+getFuncAddressMonitor :: Int a -> (a,a)
+                               -> a 
+                               -> ((a,a), a)
+getFuncAddressMonitor _ sdaPosedge = (_, sdaPosedge)
+
+-- | Create kernel
+-- Arg 1: Control signal (scenario)
+-- Arg 2: SDA value (posedge of SCL)
+-- Ret 1: Feedback of address operation
+-- Ret 2: Operation token
+kernelAddressMonitor :: Int a => ScenarAddressMonitor
+                              -> Signal a
+                              -> (Signal (a,a), Signal a)
+kernelAddressMonitor control sda = (feedback, readOp)
+  where (feedback, readOp) = kernel32SADF control pastFeedback sda
+        pastFeedback       = delaySADF initFeedback feedback
+        initFeedback       = Signal (0,0)
+
+
 
 ---------------------------------------------------------
 -- Detector
 ---------------------------------------------------------
 
--- | Address operation idle scenario
+-- | Idle scenario
 idleScenar = ScenarAddressMonitor {
-    inRates  = (0,1,0),
-    outRates = (1,0),
-    execFunc = addressMonitor
+    inRates  = (1,0),
+    outRates = (0,0),
+    execFunc = idleFuncAddressMonitor
 }
 
--- | Address operation running scenario
-runScenar = ScenarAddressMonitor {
-    inRates  = (0,0,1),
+-- | Start scenario
+startScenar = ScenarAddressMonitor {
+    inRates  = (0,1),
     outRates = (1,0),
-    execFunc = addressMonitor
+    execFunc = startFuncAddressMonitor
 }
 
--- | Address operation match scenario
+-- | Get address scenario
+getScenar = ScenarAddressMonitor {
+    inRates  = (0,1),
+    outRates = (1,0),
+    execFunc = getFuncAddressMonitor
+}
+
+-- | Match scenario
 matchScenar = ScenarAddressMonitor {
-    inRates  = (0,0,1),
-    outRates = (1,1),
-    execFunc = addressMonitor
+    inRates  = (0,1),
+    outRates = (0,1),
+    execFunc = matchFuncAddressMonitor
 }
+
+
+
+
+
+
+
+
+
+
 
 -- | Next scenario(s)
 -- Inputs
@@ -95,50 +157,4 @@ detectAddressMonitor = detector21SADF inRates stateTrans scenarSelect initState 
         initState    = (initRate, idleScenar)
         initRate     = (0,1)
         currentState = delay initState scenarSelect
-
-
-
---------------------------------------------------------
--- Kernel
----------------------------------------------------------
-
--- | Kernel operation definition
--- It mantains a fixed address that identifies the slave
--- When a new SDA value arrives (positive edge of SCL),
--- the feedback values are used.
-addressMonitor :: Int a -> (a,a)
-                        -> (a,a)
-                        -> a 
-                        -> ((a,a), a)
-addressMonitor (counter, pastAddress) (start,stop) sdaPosedge = (feedback, readOp)
-  where readOp = sdaPosedge
-        feedback
-          | start  ==1 = (7,0)
-          | stop   ==1 = (7,0)
-          | counter==7 = (0,address)
-          | otherwise  = (counter+1,address)
-        address
-          | counter==7 = sdaPosedge
-          | otherwise  = pastAddress + sdaPosedge * (2^counter)
-
--- | Create kernel
--- Arg 1:  Control signal (scenario)
--- Arg 2:  Condition signals
--- Arg 3:  SDA value (posedge of SCL)
--- Retr 1: Feedback of address operation
--- Retr 2: Operation token
-kernelAddressMonitor :: Int a => ScenarAddressMonitor
-                         -> Signal (a,a)
-                         -> Signal a
-                         -> (Signal (a,a), Signal a)
-kernelAddressMonitor control conditions sda = (feedback, readOp, sdaOut)
-  where (feedback, readOp) = kernel32SADF scenar pastFeedback conditions sda
-        pastFeedback               = delaySADF initFeedback feedback
-        initFeedback               = Signal (7,0)
-
-
-
-
-
-
 
