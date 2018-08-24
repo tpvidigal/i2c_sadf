@@ -22,8 +22,14 @@ module I2CSlaveGlobals (
   -- Scenario of condition kernels
   ScenarioCondition,
 
-  -- Scenario of Address Operation kernel
-  ScenarioOperation,
+  -- Scenario of Address Monitor kernel
+  ScenarioAddressMonitor,
+
+  -- Scenario of Read operation kernel
+  ScenarioOpRead,
+
+  -- Scenario of Write operation kernel
+  ScenarioOpWrite
 
 ) where
 
@@ -81,6 +87,22 @@ data ScenarAddressMonitor = ScenarAddressMonitor {
     execFunc :: Int a => (a,a) 
                       -> a
                       -> ((a,a),a) 
+} deriving (Show)
+
+-- | Scenario (rates) for SDA Manager kernel
+--
+-- inRates = Consumption rates
+--    1: SDA from read operation kernel
+--    2: SDA from write operation kernel
+-- outRates = Production rates
+--    1: SDA output of slave
+-- execFunc = Function that models operation
+data ScenarSDAManager = ScenarSDAManager {
+    inRates  :: (Int,Int),
+    outRates :: Int,
+    execFunc :: Int a => a 
+                      -> a
+                      -> a
 } deriving (Show)
 
 -- | Scenario (rates) for read operation kernels
