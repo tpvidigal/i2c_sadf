@@ -28,18 +28,39 @@ import I2CSlaveGlobals
 
 
 ---------------------------------------------------------
+-- Kernel
+---------------------------------------------------------
+
+-- | Data at posedge of SCL definition
+-- Arg1: Line values of SDA and SCL
+-- Ret1: SDA value at SCL posedge
+dataPosedge :: Int a => (a,a)
+                     -> a
+dataPosedge (sda,_) = sda
+
+-- | Create kernel
+-- Arg1: Line values (SDA and SCL)
+-- Ret1: SDA value at SCL posedge
+kernelDataPosedge :: Int a => Signal (a,a)
+                           -> Signal a
+kernelDataPosedge lines = kernel11SADF control lines
+  where control = detectDataPosedge lines
+
+
+
+---------------------------------------------------------
 -- Detector
 ---------------------------------------------------------
 
--- | Data at posedge idle scenario
-idleScenarDataPosedge = ScenarCondition {
+-- | Idle scenario
+idleScenar = ScenarCondition {
     inRates  = (1,1),
     outRates = 0,
     execFunc = dataPosedge
 }
 
--- | Data at posedge got scenario
-gotScenarDataPosedge = ScenarCondition {
+-- | Got scenario
+gotScenar = ScenarCondition {
     inRates  = (1,1),
     outRates = 1,
     execFunc = dataPosedge
@@ -49,15 +70,22 @@ gotScenarDataPosedge = ScenarCondition {
 -- Inputs
 -- * Past values of SDA and SCL
 -- * New values of SDA and SCL
--- Return
--- * SDA value at SCL posedge
-nextScenarDataPosedge :: ScenarCondition
-                      -> (Int, Int)
-                      -> (int, int)
-                      -> ScenarCondition
-nextScenarDataPosedge _ pastInputs newInputs
-    | pastInputs != (_,0) = idleScenarDataPosedge
-    | newInputs  == (_,1) = gotScenarDataPosedge
+nextScenar :: ScenarCondition
+           -> (Int, Int)
+           -> (int, int)
+           -> ScenarCondition
+nextScenar _ pastInputs newInputs
+    | pastInputs != (_,0) = idleScenar
+    | newInputs  == (_,1) = gotScenar
+    | otherwise           = idleScenar
+
+-- | Detector's input rate
+rates = (0,1)
+
+-- | Detector's scenario selection
+select :: ScenarCondition
+       -> (Int, [ScenarCondition])
+select scenar = (1, [scenar])
 
 -- | Detector for FSM of kernel
 -- Inputs tokens
@@ -65,44 +93,9 @@ nextScenarDataPosedge _ pastInputs newInputs
 --     > SDA line
 --     > SCL line
 detectDataPosedge :: Int a => Signal (a,a)
-                           -> ScenarOpAddress
-detectDataPosedge newInputs = detector21SADF inRates stateTrans scenarSelect initState pastInputs newInputs
-  where inRates      = (1,1)
-        stateTrans   = nextScenarDataPosedge
-        scenarSelect = stateTrans
-        initState    = (inRates, idleScenarDataPosedge)
-        pastInputs   = delaySADF initInputs newInputs
-        initInputs   = Signal (1,1)
-
-
-
----------------------------------------------------------
--- Kernel
----------------------------------------------------------
-
--- | Data at posedge of SCL definition
--- Arg 1:  Past values of SDA and SCL
--- Arg 2:  New values of SDA and SCL
--- Return: SDA value at SCL posedge
-dataPosedge :: Int a => (a,a)
-                     -> (a,a)
-                     -> a
-dataPosedge pastInputs newInputs = sdaPosedge
-  where sdaPosedge
-    | pastInputs != (_,0) = 0
-    | newInputs  == (_,1) = snd newInputs
-    | otherwise           = 0
-
--- | Create kernel
--- Arg 1:  Control signal (scenario)
--- Arg 2:  Line values (SDA and SCL)
--- Return: SDA value at SCL posedge
-kernelDataPosedge :: Int a => ScenarCondition
-                           -> Signal (a,a)
-                           -> Signal a
-kernelDataPosedge control newInputs = sdaPosedge
-  where sdaPosedge = kernel21SADF scenar pastInputs newInputs
-        pastInputs = delaySADF initInputs newInputs
+                           -> ScenarCondition
+detectDataPosedge newInputs = detector21SADF rates nextScenar select idleScenar pastInputs newInputs
+  where pastInputs = delaySADF initInputs newInputs
         initInputs = Signal (1,1)
 
 

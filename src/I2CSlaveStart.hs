@@ -27,13 +27,13 @@ import I2CSlaveGlobals
 
 
 ---------------------------------------------------------
--- Detector
+-- Kernel  
 ---------------------------------------------------------
 
 -- | START condition definition
--- Arg 1:  Past values of SDA and SCL
--- Arg 2:  New values of SDA and SCL
--- Return: START condition (or not)
+-- Arg1: Past values of SDA and SCL
+-- Arg2: New values of SDA and SCL
+-- Ret1: START condition (or not)
 conditStart :: Int a => (a,a) 
                      -> (a,a)
                      -> a
@@ -43,33 +43,68 @@ conditStart pastInputs newInputs = start
     | newInputs  == (0,1) = 1
     | otherwise           = 0
 
--- | START condition scenario(s)
--- Always require new SDA/SCL values
--- Always generate the condition flag
--- Always act the same way
-getScenarStart :: ScenarCondition
-getScenarStart = ScenarCondition {
-    inRates  = (1,1), 
-    outRates = 1, 
-    execFunc = conditStart 
-}
-
-
-
----------------------------------------------------------
--- Kernel  
----------------------------------------------------------
-
--- | Create START kernel
+-- | Create kernel
 -- Arg 1:  SDA and SCL values
 -- Return: If condition happened
 kernelStart :: Int a => Signal (a,a)
                      -> Signal a
 kernelStart newInputs = start
-  where start      = kernel21SADF scenar pastInputs newInputs
+  where start      = kernel21SADF control pastInputs newInputs
         pastInputs = delaySADF initInputs newInputs
         initInputs = Signal (1,1)
-        scenar     = Signal getScenarStart
+        control    = detectStart
+
+
+
+---------------------------------------------------------
+-- Detector
+---------------------------------------------------------
+
+-- | Idle scenario
+idleScenar = ScenarCondition {
+    inRates  = (1,1),
+    outRates = 0,
+    execFunc = conditStart
+}
+
+-- | Got scenario
+gotScenar = ScenarCondition {
+    inRates  = (1,1),
+    outRates = 1,
+    execFunc = conditStart
+}
+
+-- | Next scenario(s)
+-- Inputs
+-- * Past values of SDA and SCL
+-- * New values of SDA and SCL
+nextScenar :: ScenarCondition
+           -> (Int, Int)
+           -> (int, int)
+           -> ScenarCondition
+nextScenar _ pastInputs newInputs
+    | pastInputs != (1,1) = idleScenar
+    | newInputs  == (0,1) = gotScenar
+    | otherwise           = idleScenar
+
+-- | Detector's input rate
+rates = (0,1)
+
+-- | Detector's scenario selection
+select :: ScenarCondition
+       -> (Int, [ScenarCondition])
+select scenar = (1, [scenar])
+
+-- | Detector for FSM of kernel
+-- Inputs tokens
+-- * Wires tuplet
+--     > SDA line
+--     > SCL line
+detectStart :: Int a => Signal (a,a)
+                     -> ScenarCondition
+detectStart newInputs = detector21SADF rates nextScenar select idleScenar pastInputs newInputs
+  where pastInputs = delaySADF initInputs newInputs
+        initInputs = Signal (1,1)
 
 
 

@@ -71,7 +71,7 @@ kernelAddressMonitor :: Int a => ScenarAddressMonitor
                               -> Signal a
                               -> (Signal (a,a), Signal a)
 kernelAddressMonitor control sda = (feedback, readOp)
-  where (feedback, readOp) = kernel32SADF control pastFeedback sda
+  where (feedback, readOp) = kernel22SADF control pastFeedback sda
         pastFeedback       = delaySADF initFeedback feedback
         initFeedback       = Signal (0,0)
 
