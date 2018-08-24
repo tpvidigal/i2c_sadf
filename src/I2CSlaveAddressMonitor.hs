@@ -30,6 +30,7 @@ module I2CSlaveAddressMonitor (
 import I2CSlaveGlobals
 
 
+
 --------------------------------------------------------
 -- Kernel
 ---------------------------------------------------------
@@ -56,10 +57,10 @@ getFuncAddressMonitor (counter, pastAddress) sdaPosedge = (feedback, readOp)
         address  = pastAddress + sdaPosedge * (2^counter)
 
 -- | Kernel function during match scenario
-getFuncAddressMonitor :: Int a -> (a,a)
-                               -> a 
-                               -> ((a,a), a)
-getFuncAddressMonitor _ sdaPosedge = (_, sdaPosedge)
+matchFuncAddressMonitor :: Int a -> (a,a)
+                                 -> a 
+                                 -> ((a,a), a)
+matchFuncAddressMonitor _ sdaPosedge = (_, sdaPosedge)
 
 -- | Create kernel
 -- Arg 1: Control signal (scenario)
@@ -108,53 +109,51 @@ matchScenar = ScenarAddressMonitor {
     execFunc = matchFuncAddressMonitor
 }
 
-
-
-
-
-
-
-
-
-
-
 -- | Next scenario(s)
 -- Inputs
 -- * Current scenario (state)
+-- * SCL posedge
 -- * Feedback: bits counted and address
 -- * Condition: start and stop
 -- Return
 -- * Next scenario
 nextScenar :: ScenarAddressMonitor
+           -> Int
            -> (Int, Int)
            -> (int, int)
            -> ScenarAddressMonitor
-nextScenar idleScenar _ (start,_)
-  | start == 1                             = runScenar 
-  | otherwise                              = idleScenar
-nextScenar runScenar (counter, address) (start,stop)
-  | stop == 1                              = idleScenar
-  | (counter==6) & (address==SLAVEADDRESS) = matchScenar
-  | otherwise                              = runScenar 
-nextScenar matchScenar _ _                 = idleScenar
+nextScenar idleScenar _ _ (start,_)
+  | start == 1                        = startScenar 
+  | otherwise                         = idleScenar
+nextScenar startScenar _ _ (start,stop)
+  | start == 1                        = idleScenar
+  | stop == 1                         = idleScenar
+  | otherwise                         = getScenar
+nextScenar getScenar _ (count, addr) (start,stop)
+  | start == 1                        = idleScenar
+  | stop == 1                         = idleScenar
+  | (count==6) & (addr==SLAVEADDRESS) = matchScenar
+  | otherwise                         = idleScenar 
+nextScenar matchScenar _ _ _          = idleScenar
+
+-- | Detector's input rate
+rates = (1,0,0)
+
+-- | Detector's scenario selection
+select :: ScenarAddressMonitor
+       -> (Int, [ScenarAddressMonitor])
+select scenar = (1, [scenar])
 
 -- | Detector for FSM of kernel
 -- Inputs tokens
--- * Operation tuplet
---     > Address operation feedback
--- * Condition tuplet
---     > START condition
---     > STOP condition
-detectAddressMonitor :: Int a => Signal (a,a)
+-- * SCL posedge
+-- * Feedback: bits counted and address
+-- * Condition: start and stop
+-- Output tokens (scenarios)
+-- * Address Monitor kernel
+detectAddressMonitor :: Int a => Signal a
+                              -> Signal (a,a)
                               -> Signal (a,a)
                               -> ScenarAddressMonitor
-detectAddressMonitor = detector21SADF inRates stateTrans scenarSelect initState currentState
-  where inRates
-          | scenarSelect==idleScenar = initRate
-          | otherwise                = (1,0)
-        stateTrans   = nextScenar
-        scenarSelect = stateTrans
-        initState    = (initRate, idleScenar)
-        initRate     = (0,1)
-        currentState = delay initState scenarSelect
+detectAddressMonitor = detector31SADF rates nextScenar select idleScenar
 
