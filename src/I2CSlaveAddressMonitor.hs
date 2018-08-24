@@ -36,31 +36,31 @@ import I2CSlaveGlobals
 ---------------------------------------------------------
 
 -- | Kernel function during idle scenario
-idleFuncAddressMonitor :: Int a -> (a,a)
-                                -> a 
-                                -> ((a,a), a)
-idleFuncAddressMonitor _ _ = ((0,0),0)
+idleFunc :: Int a -> (a,a)
+                  -> a 
+                  -> ((a,a), a)
+idleFunc _ _ = ((0,0),0)
 
 -- | Kernel function during start scenario
-startFuncAddressMonitor :: Int a -> (a,a)
-                                 -> a 
-                                 -> ((a,a), a)
-startFuncAddressMonitor _ sdaPosedge = ((0,sdaPosedge),0)
+startFunc :: Int a -> (a,a)
+                   -> a 
+                   -> ((a,a), a)
+startFunc _ sdaPosedge = ((0,sdaPosedge),0)
 
 -- | Kernel function during get address scenario
-getFuncAddressMonitor :: Int a -> (a,a)
-                               -> a 
-                               -> ((a,a), a)
-getFuncAddressMonitor (counter, pastAddress) sdaPosedge = (feedback, readOp)
+getFunc :: Int a -> (a,a)
+                 -> a 
+                 -> ((a,a), a)
+getFunc (counter, pastAddress) sdaPosedge = (feedback, readOp)
   where readOp   = sdaPosedge
         feedback = (counter+1,address)
         address  = pastAddress + sdaPosedge * (2^counter)
 
 -- | Kernel function during match scenario
-matchFuncAddressMonitor :: Int a -> (a,a)
-                                 -> a 
-                                 -> ((a,a), a)
-matchFuncAddressMonitor _ sdaPosedge = (_, sdaPosedge)
+matchFunc :: Int a -> (a,a)
+                   -> a 
+                   -> ((a,a), a)
+matchFunc _ sdaPosedge = (_, sdaPosedge)
 
 -- | Create kernel
 -- Arg 1: Control signal (scenario)
@@ -85,28 +85,28 @@ kernelAddressMonitor control sda = (feedback, readOp)
 idleScenar = ScenarAddressMonitor {
     inRates  = (1,0),
     outRates = (0,0),
-    execFunc = idleFuncAddressMonitor
+    execFunc = idleFunc
 }
 
 -- | Start scenario
 startScenar = ScenarAddressMonitor {
     inRates  = (0,1),
     outRates = (1,0),
-    execFunc = startFuncAddressMonitor
+    execFunc = startFunc
 }
 
 -- | Get address scenario
 getScenar = ScenarAddressMonitor {
     inRates  = (0,1),
     outRates = (1,0),
-    execFunc = getFuncAddressMonitor
+    execFunc = getFunc
 }
 
 -- | Match scenario
 matchScenar = ScenarAddressMonitor {
     inRates  = (0,1),
     outRates = (0,1),
-    execFunc = matchFuncAddressMonitor
+    execFunc = matchFunc
 }
 
 -- | Next scenario(s)

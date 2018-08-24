@@ -59,46 +59,51 @@
 --
 -- SADF for I2C Slave
 --
--- * There will be 2 kernels responsible for condition detection. They always
+-- * There are 2 kernels responsible for condition detection. They always
 --   operate the same way (no detector necessary) and all other processes will
 --   monitor those signals
---   > START condition monitor
---   > STOP condition monitor
+--   > START condition monitor (kernelStart)
+--   > STOP condition monitor (kernelStop)
 --
--- * There will be 1 kernel similar to the condition ones. However, it acts
---   like a synchronizer for I2C data. When a positive edge at the SCL line
---   is detected, it generates a token with the SDA value sampled
---   > Data value at posedge (DataPosedge)
+-- * There is 1 kernel similar to the condition ones. However, it acts like
+--   a synchronizer for I2C data. When a positive edge at the SCL line is
+--   detected, it generates a token with the SDA value sampled. In other
+--   words, it's the clock of the system, with the SDA value as a bonus.
+--   > Data value at posedge (kernelDataPosedge)
 --
--- * There will be 1 kernel to monitor the address being transmitted after a
---   START condition. If the 7 bits received match the slave address, the 8th
---   bit is send as a token and determines the operation that will be performed
+-- * There is 1 kernel to monitor the address being transmitted after a START
+--   condition. If the 7 bits received match the slave address, the 8th bit
+--   is send as a token and determines the operation that will be performed.
+--   > Address Monitor (kernelAddressMonitor)
+--   > Address Monitor controller (detectAddressMonitor)
 --
+-- * There is 1 detector that will coordiante the operations execution. When
+--   operation to execute is determined (Master read or write), this detector
+--   will manage the scenarios that the operation kernels must be at each
+--   step of the execution.
+--   > Operation Controller (detectOpControl)
 --
---
---
---
---
--- * There will be 2 operation kernels. Each one requires a detector to model
---   the FSM they must obey. Also, they watch conditions to reset or start
---   their operation. Finally, they define the SDA value of slave to control
---   acknowledge and data signals.
---   > Address + read/write selector monitor (OpAddress)
---   > Master read operator (OpRead)
---   > Master write operator (OpWrite)
+-- * There will be 2 operation kernels. Each of them will contain the steps
+--   for the Master read or write operation. They are also responsible to
+--   define the SDA value of slave to control acknowledge and data signals.
+--   > Master read operator (kernelOpRead)
+--   > Master write operator (kernelOpWrite)
 --
 -- * There will be 1 last kernel to control the slave's SDA line. It monitors
 --   the operation kernels all the time. If one of them push SDA to 0, it
 --   defines the final Slave's SDA value to 0. It basically centralizes the
---   required SDA changes.
---   > Manager of SDA line (ManagerSDA)
+--   required SDA changes. It's scenario is defined by the operations controller.
+--   > Manager of SDA line (kernelSDAManager)
 --
 -----------------------------------------------------------------------------
 
 module I2CSlave (
 
   -- Simulate I2C Slave model using the given stimulus
-  simulate
+  simulate,
+
+  -- I2C Slave block
+  i2cSlave
 
 ) where
 
@@ -118,13 +123,26 @@ import I2CSlaveOpAddress
 -- System
 ---------------------------------------------------------
 
--- start                               = kernelConditStart twoLines
--- stop                                = kernelConditStop  twoLines
--- sdaPosedge                          = kernelDataPosedge twoLines
--- (fbOpAddress, readOp, sdaOpAddress) = kernelOpAddress   ctrlOpAddress twoLines (start,stop)
--- (fbOpRead, sdaOpRead)               = kernelOpRead      ctrlOpRead    twoLines (start,stop)
--- (fbOpWrite, sdaOpWrite)             = kernelOpWrite     ctrlOpWrite   twoLines (start,stop)
--- sdaOut                              = kernelManagerSDA  sdaOpAddress sdaOpRead sdaOpWrite
+-- Conditions
+-- start                        = kernelConditStart twoLines
+-- stop                         = kernelConditStop  twoLines
+
+-- Clock
+-- sdaPosedge                   = kernelDataPosedge twoLines
+
+-- Address
+-- (fbAddress,readOp)           = kernelAddressMonitor ctrlAddress twoLines
+-- ctrlAddress = detectAddressMonitor sdaPosedge fbAddress (start,stop)
+
+-- Controller
+-- (ctrlRead,ctrlWrite,ctrlSDA) = detectOpControl sdaPosedge (start,stop) fbRead fbWrite keepRead readOp
+
+-- Operations
+-- (fbRead,byteRead,sdaRead)    = kernelOpRead  ctrlRead  sdaPosedge
+-- (fbWrite,doneWrite,sdaWrite) = kernelOpWrite ctrlWrite sdaPosedge
+
+-- SDA output of slave
+-- sdaOut                       = kernelManagerSDA ctrlSDA sdaOpRead sdaOpWrite
 
 
 

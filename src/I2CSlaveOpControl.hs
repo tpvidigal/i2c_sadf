@@ -161,7 +161,7 @@ ackScenarOpWrite = ScenarOpWrite {
 -- * Current scenario (state)
 -- * SCL posedge
 -- * Condition: start and stop
--- * Feedback: counter and data
+-- * Feedback counter
 -- * SDA (for ACK from Master)
 -- * Matched address operation
 -- Return
@@ -180,7 +180,7 @@ nextScenarOpWrite startScenarOpWrite _ (start,stop) _ _ _
   | start == 1  = idleScenarOpWrite
   | stop == 1   = idleScenarOpWrite
   | otherwise   = runScenarOpWrite
-nextScenarOpWrite runScenarOpWrite _ (start,stop) (count,_) _ _
+nextScenarOpWrite runScenarOpWrite _ (start,stop) count _ _
   | start == 1  = idleScenarOpWrite
   | stop == 1   = idleScenarOpWrite
   | count == 6  = lastScenarOpWrite
@@ -273,8 +273,8 @@ selectSDAManager scenar = (1, [scenar])
 -- Input tokens
 -- * SDA line value (posedge of SCL)
 -- * Condition: start and stop
--- * Feedback read
--- * Feedback write
+-- * Feedback read counter
+-- * Feedback write counter
 -- * Keep reading
 -- * Matched address operation
 -- Output tokens (scenarios)
@@ -284,23 +284,23 @@ selectSDAManager scenar = (1, [scenar])
 detectOpControl :: Int a => Signal a
                          -> Signal (a,a)
                          -> Signal a
-                         -> Signal (a,a)
+                         -> Signal a
                          -> Signal a
                          -> Signal a
                          -> (Signal ScenarOpRead,
                              Signal ScenarOpWrite,
                              Signal ScenarSDAManager)
 detectOpControl allInputs = allOutputs
-  where allInputs     = sdaPosedge conditions fbOpRead fbOpWrite keepRead readOp
+  where allInputs     = sdaPosedge conditions countRead countWrite keepRead readOp
         allOutputs    = (scenarRead, scenarWrite, scenarSDA)
 
         scenarRead    = detector51SADF ratesOpRead statesOpRead inputsOpRead
         statesOpRead  = nextScenarOpRead selectOpRead idleScenarOpRead
-        inputsOpRead  = sdaPosedge conditions fbOpRead keepRead readOp
+        inputsOpRead  = sdaPosedge conditions countRead keepRead readOp
 
         scenarWrite   = detector51SADF ratesOpWrite statesOpWrite inputsOpWrite
         statesOpWrite = nextScenarOpWrite selectOpWrite idleScenarOpWrite
-        inputsOpWrite = sdaPosedge conditions fbOpWrite keepRead readOp
+        inputsOpWrite = sdaPosedge conditions countWrite keepRead readOp
 
         scenarSDA     = detector31SADF ratesSDAManager statesSDA inputsSDA
         statesSDA     = nextScenarSDAManager selectSDAManager idleScenarSDAManager
