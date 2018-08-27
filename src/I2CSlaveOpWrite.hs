@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 --
--- Module      :  I2C Master Read Operation block
+-- Module      :  I2C Master Write Operation block
 -- Copyright   :  (c) Tiago Vidigal
 -- License     :  still needs license
 --
@@ -10,17 +10,17 @@
 --
 -----------------------------------------------------------------------------
 --
--- This is the Master read operation I2C model following the SADF MoC.
--- If the address matches and the operation token indicates a read operation,
--- this block is activated. It transmits 8 bits at the positive edge and then
--- receives if Master wants to more (ACK) or not (NACK).
+-- This is the Master write operation I2C model following the SADF MoC.
+-- If the address matches and the operation token indicates a write operation,
+-- this block is activated. It receives 8 bits at the positive edge and then
+-- responds if wants to receive more (ACK) or not (NACK).
 --
 -----------------------------------------------------------------------------
 
-module I2CSlaveOpRead (
+module I2CSlaveOpWrite (
 
-  -- Master Read Operation kernel
-  kernelOpRead
+  -- Master Write Operation kernel
+  kernelOpWrite
 
 ) where
 
@@ -33,36 +33,44 @@ import I2CSlaveGlobals
 --------------------------------------------------------
 
 -- | Kernel function during idle scenario
-idleFunc :: Int a -> a
+idleFunc :: Int a -> (a,a)
                   -> a 
                   -> a 
                   -> a 
-                  -> (a, a, a)
-idleFunc _ _ _ _ = (0, 0, 0)
+                  -> ((a,a), a, a)
+idleFunc _ _ _ _ = ((0,0), 0, 0)
 
 -- | Kernel function during start scenario
-startFunc :: Int a -> a
+startFunc :: Int a -> (a,a)
                    -> a 
                    -> a 
                    -> a 
-                   -> (a, a, a)
+                   -> ((a,a), a, a)
 startFunc _ _ _ _ = (feedback,0,sdaOut)
-  where feedback = 0
+  where feedback = (0,0)
         sdaOut   = 0
 
 -- | Kernel function during run scenario
-runFunc :: Int a -> a
+runFunc :: Int a -> (a,a)
                  -> a 
                  -> a 
                  -> a 
-                 -> (a, a, a)
-runFunc counter _ _ dataByte = (feedback,0,sdaOut)
-  where feedback
+                 -> ((a,a), a, a)
+runFunc (counter,dataByte) sdaPosedge _ _ = (feedback,0,1)
+  where feedback = (countback, databack)
+        countback
           | counter == 0 = 7
           | otherwise    = counter-1
-        sdaOut 
-          | testBit feedback dataByte = 1
-          | otherwise                 = 0
+        databack = dataByte + dataBit
+        dataBit  = 2^countback
+
+
+
+
+
+
+
+
 
 -- | Kernel function during last scenario
 lastFunc :: Int a -> a
@@ -81,7 +89,7 @@ ackFunc :: Int a -> a
                  -> a 
                  -> a 
                  -> (a, a, a)
-ackFunc _ _ _ _ = (0,1,1)
+ackFunc _ _ _ keep = (0,1,1)
 
 -- | Create kernel
 -- Arg1: Control signal (scenario)
@@ -91,13 +99,13 @@ ackFunc _ _ _ _ = (0,1,1)
 -- Ret1: Feedback counter
 -- Ret2: Done signal
 -- Ret3: SDA of Slave
-kernelOpRead :: Int a => ScenarOpRead
+kernelOpWrite :: Int a => ScenarOpWrite
                       -> Signal a
                       -> Signal a
                       -> Signal a
                       -> (Signal a, Signal a, Signal a)
-kernelOpRead control sdaPosedge sclNegedge dataByte = (feedback, done, sdaOut)
-  where (feedback, readOp, sdaOut) = kernel43SADF control pastFeedback sdaPosedge sclNegedge dataByte
+kernelOpWrite control sdaPosedge sclNegedge dataByte = (feedback, done, sdaOut)
+  where (feedback, writeOp, sdaOut) = kernel43SADF control pastFeedback sdaPosedge sclNegedge dataByte
         pastFeedback               = delaySADF 0 feedback
 
 

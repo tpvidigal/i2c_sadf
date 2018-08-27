@@ -35,7 +35,7 @@ module I2CSlaveGlobals (
 
 import ForSyDe.Shallow
 import SADF
-import Data.Bits((.&.), (.|.), xor)
+import Data.Bits
 
 
 
@@ -108,18 +108,20 @@ data ScenarSDAManager = ScenarSDAManager {
 -- | Scenario (rates) for read operation kernels
 --
 -- inRates = Consumption rates
---    1: Feedback counter of process
+--    1: Feedback counter
 --    2: SDA line value (posedge of SCL)
---    3: Keep reading signal
+--    3: SCL negative edge
+--    4: Byte to send
 -- outRates = Production rates
 --    1: New feedback counter
---    2: Received byte
+--    2: Done signal
 --    3: SDA value from Slave
 -- execFunc = Function that models operation
 data ScenarOpRead = ScenarOpRead {
-    inRates  :: (Int,Int,Int),
+    inRates  :: (Int,Int,Int,Int),
     outRates :: (Int,Int,Int),
     execFunc :: Int a => a
+                      -> a
                       -> a
                       -> a
                       -> (a,a,a) 
@@ -130,16 +132,18 @@ data ScenarOpRead = ScenarOpRead {
 -- inRates = Consumption rates
 --    1: Feedback: counter and data
 --    2: SDA line value (posedge of SCL)
---    3: Byte to send
+--    3: SCL negative edge
+--    3: Keep reading signal
 -- outRates = Production rates
 --    1: New feedback
---    2: Done signal
+--    2: Received byte
 --    3: SDA value from Slave
 -- execFunc = Function that models operation
 data ScenarOpWrite = ScenarOpWrite {
-    inRates  :: (Int,Int,Int),
+    inRates  :: (Int,Int,Int,Int),
     outRates :: (Int,Int,Int),
     execFunc :: Int a => (a,a)
+                      -> a
                       -> a
                       -> a
                       -> ((a,a),a,a) 

@@ -35,35 +35,35 @@ import I2CSlaveGlobals
 
 -- | Idle scenario
 idleScenarOpRead = ScenarOpRead {
-    inRates  = (0,0,0),
+    inRates  = (0,0,0,0),
     outRates = (0,0,0),
     execFunc = idleFuncOpRead
 }
 
 -- | Start scenario
 startScenarOpRead = ScenarOpRead {
-    inRates  = (0,1,0),
+    inRates  = (0,0,1,0),
     outRates = (1,0,1),
     execFunc = startFuncOpRead
 }
 
 -- | Receiving byte scenario
 runScenarOpRead = ScenarOpRead {
-    inRates  = (0,1,0),
-    outRates = (1,0,0),
+    inRates  = (0,0,1,0),
+    outRates = (1,0,1),
     execFunc = runFuncOpRead
 }
 
 -- | Last bit scenario
 lastScenarOpRead = ScenarOpRead {
-    inRates  = (0,1,0),
+    inRates  = (0,0,1,0),
     outRates = (1,1,1),
-    execFunc = ackFuncOpRead
+    execFunc = lastFuncOpRead
 }
 
 -- | ACK scenario
 ackScenarOpRead = ScenarOpRead {
-    inRates  = (0,1,0),
+    inRates  = (0,1,0,0),
     outRates = (1,0,0),
     execFunc = ackFuncOpRead
 }
@@ -71,10 +71,9 @@ ackScenarOpRead = ScenarOpRead {
 -- | Next scenario(s)
 -- Inputs
 -- * Current scenario (state)
--- * SCL posedge
+-- * SDA value (posedge of SCL)
 -- * Condition: start and stop
 -- * Feedback counter
--- * Keep reading
 -- * Matched address operation
 -- Return
 -- * Next scenario
@@ -83,29 +82,28 @@ nextScenarOpRead :: ScenarOpRead
                  -> (Int, Int)
                  -> Int
                  -> Int
-                 -> Int
                  -> ScenarOpRead
-nextScenarOpRead idleScenarOpRead _ _ _ _ readOp
-  | readOp == 1 = startScenarOpRead
-  | otherwise   = idleScenarOpRead
-nextScenarOpRead startScenarOpRead _ (start,stop) _ _ _
-  | start == 1  = idleScenarOpRead
-  | stop == 1   = idleScenarOpRead
-  | otherwise   = runScenarOpRead
-nextScenarOpRead runScenarOpRead _ (start,stop) count _ _
-  | start == 1  = idleScenarOpRead
-  | stop == 1   = idleScenarOpRead
-  | count == 6  = lastScenarOpRead
-  | otherwise   = runScenarOpRead
-nextScenarOpRead lastScenarOpRead _ (start,stop) _ keep _
-  | start == 1  = idleScenarOpRead
-  | stop == 1   = idleScenarOpRead
-  | keep == 0   = idleScenarOpRead
-  | otherwise   = ackScenarOpRead
-nextScenarOpRead ackScenarOpRead _ (start,stop) _ _ _
-  | start == 1  = idleScenarOpRead
-  | stop == 1   = idleScenarOpRead
-  | otherwise   = runScenarOpRead
+nextScenarOpRead idleScenarOpRead _ _ _ readOp
+  | readOp == 1     = startScenarOpRead
+  | otherwise       = idleScenarOpRead
+nextScenarOpRead startScenarOpRead _ (start,stop) _ _
+  | start == 1      = idleScenarOpRead
+  | stop == 1       = idleScenarOpRead
+  | otherwise       = runScenarOpRead
+nextScenarOpRead runScenarOpRead _ (start,stop) count _
+  | start == 1      = idleScenarOpRead
+  | stop == 1       = idleScenarOpRead
+  | count == 1      = lastScenarOpRead
+  | otherwise       = runScenarOpRead
+nextScenarOpRead lastScenarOpRead _ (start,stop) _ _
+  | start == 1      = idleScenarOpRead
+  | stop == 1       = idleScenarOpRead
+  | otherwise       = ackScenarOpRead
+nextScenarOpRead ackScenarOpRead sdaPosedge (start,stop) _ _ _
+  | start == 1      = idleScenarOpRead
+  | stop == 1       = idleScenarOpRead
+  | sdaPosedge == 0 = runScenarOpRead
+  | otherwise       = idleScenarOpRead
 
 -- | Detector's input rate
 ratesOpRead = (1,0,0,0,0)
@@ -123,53 +121,53 @@ selectOpRead scenar = (1, [scenar])
 
 -- | Idle scenario
 idleScenarOpWrite = ScenarOpWrite {
-    inRates  = (0,0,0),
+    inRates  = (0,0,0,0),
     outRates = (0,0,0),
     execFunc = idleFuncOpWrite
 }
 
 -- | Start scenario
 startScenarOpWrite = ScenarOpWrite {
-    inRates  = (0,1,0),
+    inRates  = (0,0,1,0),
     outRates = (1,0,1),
     execFunc = startFuncOpWrite
 }
 
 -- | Receiving byte scenario
 runScenarOpWrite = ScenarOpWrite {
-    inRates  = (0,1,0),
-    outRates = (1,0,1),
+    inRates  = (0,1,0,0),
+    outRates = (1,0,0),
     execFunc = runFuncOpWrite
 }
 
 -- | Last bit scenario
 lastScenarOpWrite = ScenarOpWrite {
-    inRates  = (0,1,0),
-    outRates = (1,1,1),
+    inRates  = (0,1,0,0),
+    outRates = (1,1,0),
     execFunc = lastFuncOpWrite
 }
 
 -- | ACK scenario
 ackScenarOpWrite = ScenarOpWrite {
-    inRates  = (0,1,0),
-    outRates = (1,1,0),
+    inRates  = (0,0,1,0),
+    outRates = (1,0,1),
     execFunc = ackFuncOpWrite
 }
 
 -- | Next scenario(s)
 -- Inputs
 -- * Current scenario (state)
--- * SCL posedge
+-- * SDA value (posedge of SCL)
 -- * Condition: start and stop
 -- * Feedback counter
--- * SDA (for ACK from Master)
+-- * Keep reading signal
 -- * Matched address operation
 -- Return
 -- * Next scenario
 nextScenarOpWrite :: ScenarOpWrite
                  -> Int
                  -> (Int, Int)
-                 -> (Int, Int)
+                 -> Int
                  -> Int
                  -> Int
                  -> ScenarOpWrite
@@ -183,17 +181,17 @@ nextScenarOpWrite startScenarOpWrite _ (start,stop) _ _ _
 nextScenarOpWrite runScenarOpWrite _ (start,stop) count _ _
   | start == 1  = idleScenarOpWrite
   | stop == 1   = idleScenarOpWrite
-  | count == 6  = lastScenarOpWrite
+  | count == 1  = lastScenarOpWrite
   | otherwise   = runScenarOpWrite
 nextScenarOpWrite lastScenarOpWrite _ (start,stop) _ _ _
   | start == 1  = idleScenarOpWrite
   | stop == 1   = idleScenarOpWrite
   | otherwise   = ackScenarOpWrite
-nextScenarOpWrite ackScenarOpWrite _ (start,stop) _ sda _
+nextScenarOpWrite ackScenarOpWrite _ (start,stop) _ keep _
   | start == 1  = idleScenarOpWrite
   | stop == 1   = idleScenarOpWrite
-  | sda == 1    = idleScenarOpWrite
-  | otherwise   = runScenarOpWrite
+  | keep == 1   = runScenarOpWrite
+  | otherwise   = idleScenarOpWrite
 
 -- | Detector's input rate
 ratesOpWrite = (1,0,0,0,0)
