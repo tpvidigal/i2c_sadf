@@ -105,7 +105,7 @@ data ScenarSDAManager = ScenarSDAManager {
                       -> a
 } deriving (Show)
 
--- | Scenario (rates) for read operation kernels
+-- | Scenario (rates) for read operation kernel
 --
 -- inRates = Consumption rates
 --    1: Feedback counter
@@ -127,13 +127,13 @@ data ScenarOpRead = ScenarOpRead {
                       -> (a,a,a) 
 } deriving (Show)
 
--- | Scenario (rates) for write operation kernels
+-- | Scenario (rates) for write operation kernel
 --
 -- inRates = Consumption rates
 --    1: Feedback: counter and data
 --    2: SDA line value (posedge of SCL)
 --    3: SCL negative edge
---    3: Keep reading signal
+--    4: Keep reading signal
 -- outRates = Production rates
 --    1: New feedback
 --    2: Received byte
@@ -149,7 +149,23 @@ data ScenarOpWrite = ScenarOpWrite {
                       -> ((a,a),a,a) 
 } deriving (Show)
 
-
+-- | Scenario (rates) for SDA Manager kernel
+--
+-- inRates = Consumption rates
+--    1: SCL negedge
+--    2: SDA from Master Read operation kernel
+--    3: SDA from Master Write operation kernel
+-- outRates = Production rates
+--    1: SDA output of Slave
+-- execFunc = Function that models operation
+data ScenarSDAManager = ScenarSDAManager {
+    inRates  :: (Int,Int,Int),
+    outRates :: Int,
+    execFunc :: Int a => a
+                      -> a
+                      -> a
+                      -> a
+} deriving (Show)
 
 
 

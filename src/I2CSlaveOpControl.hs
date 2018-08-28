@@ -143,7 +143,7 @@ runScenarOpWrite = ScenarOpWrite {
 -- | Last bit scenario
 lastScenarOpWrite = ScenarOpWrite {
     inRates  = (0,1,0,0),
-    outRates = (1,1,0),
+    outRates = (0,1,0),
     execFunc = lastFuncOpWrite
 }
 
@@ -209,21 +209,21 @@ selectOpWrite scenar = (1, [scenar])
 
 -- | Idle scenario
 idleScenarSDAManager = ScenarSDAManager {
-    inRates  = (0,0),
+    inRates  = (0,0,0),
     outRates = 0,
     execFunc = idleFuncSDAManager
 }
 
 -- | Read scenario
 readScenarSDAManager = ScenarSDAManager {
-    inRates  = (1,0),
+    inRates  = (1,0,0),
     outRates = 1,
     execFunc = readFuncSDAManager
 }
 
 -- | Write scenario
 writeScenarSDAManager = ScenarSDAManager {
-    inRates  = (0,1),
+    inRates  = (1,0,0),
     outRates = 1,
     execFunc = writeFuncSDAManager
 }
@@ -231,7 +231,7 @@ writeScenarSDAManager = ScenarSDAManager {
 -- | Next scenario(s)
 -- Inputs
 -- * Current scenario (state)
--- * SCL posedge
+-- * SCL negedge
 -- * Condition: start and stop
 -- * Matched address operation
 -- Return

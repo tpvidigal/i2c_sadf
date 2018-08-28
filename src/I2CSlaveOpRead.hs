@@ -33,30 +33,30 @@ import I2CSlaveGlobals
 --------------------------------------------------------
 
 -- | Kernel function during idle scenario
-idleFunc :: Int a -> a
-                  -> a 
-                  -> a 
-                  -> a 
-                  -> (a, a, a)
-idleFunc _ _ _ _ = (0, 0, 0)
+idleFuncOpRead :: Int a -> a
+                        -> a 
+                        -> a 
+                        -> a 
+                        -> (a, a, a)
+idleFuncOpRead _ _ _ _ = (0, 0, 0)
 
 -- | Kernel function during start scenario
-startFunc :: Int a -> a
-                   -> a 
-                   -> a 
-                   -> a 
-                   -> (a, a, a)
-startFunc _ _ _ _ = (feedback,0,sdaOut)
+startFuncOpRead :: Int a -> a
+                         -> a 
+                         -> a 
+                         -> a 
+                         -> (a, a, a)
+startFuncOpRead _ _ _ _ = (feedback,0,sdaOut)
   where feedback = 0
         sdaOut   = 0
 
 -- | Kernel function during run scenario
-runFunc :: Int a -> a
-                 -> a 
-                 -> a 
-                 -> a 
-                 -> (a, a, a)
-runFunc counter _ _ dataByte = (feedback,0,sdaOut)
+runFuncOpRead :: Int a -> a
+                       -> a 
+                       -> a 
+                       -> a 
+                       -> (a, a, a)
+runFuncOpRead counter _ _ dataByte = (feedback,0,sdaOut)
   where feedback
           | counter == 0 = 7
           | otherwise    = counter-1
@@ -65,23 +65,23 @@ runFunc counter _ _ dataByte = (feedback,0,sdaOut)
           | otherwise                 = 0
 
 -- | Kernel function during last scenario
-lastFunc :: Int a -> a
-                  -> a 
-                  -> a 
-                  -> a 
-                  -> (a, a, a)
-lastFunc _ _ _ dataByte = (0,1,sdaOut)
+lastFuncOpRead :: Int a -> a
+                        -> a 
+                        -> a 
+                        -> a 
+                        -> (a, a, a)
+lastFuncOpRead _ _ _ dataByte = (0,1,sdaOut)
   where sdaOut 
           | testBit 0 dataByte = 1
           | otherwise          = 0
 
 -- | Kernel function during ack scenario
-ackFunc :: Int a -> a
-                 -> a 
-                 -> a 
-                 -> a 
-                 -> (a, a, a)
-ackFunc _ _ _ _ = (0,1,1)
+ackFuncOpRead :: Int a -> a
+                       -> a 
+                       -> a 
+                       -> a 
+                       -> (a, a, a)
+ackFuncOpRead _ _ _ _ = (0,1,1)
 
 -- | Create kernel
 -- Arg1: Control signal (scenario)

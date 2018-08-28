@@ -65,11 +65,13 @@
 --   > START condition monitor (kernelStart)
 --   > STOP condition monitor (kernelStop)
 --
--- * There is 1 kernel similar to the condition ones. However, it acts like
+-- * There is 2 kernels similar to the condition ones. However, they act like
 --   a synchronizer for I2C data. When a positive edge at the SCL line is
 --   detected, it generates a token with the SDA value sampled. In other
 --   words, it's the clock of the system, with the SDA value as a bonus.
---   > Data value at posedge (kernelDataPosedge)
+--   The same is done to the negative edge.
+--   > Data value at posedge (kernelPosedge)
+--   > Data value at negedge (kernelNegedge)
 --
 -- * There is 1 kernel to monitor the address being transmitted after a START
 --   condition. If the 7 bits received match the slave address, the 8th bit
