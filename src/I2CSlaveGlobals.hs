@@ -44,8 +44,7 @@ import Data.Bits
 ---------------------------------------------------------
 
 -- | Slave address to be considered
-SLAVEADDRESS :: Int
-SLAVEADDRESS = 1;
+SLAVEADDRESS = 1
 
 
 
@@ -87,22 +86,6 @@ data ScenarAddressMonitor = ScenarAddressMonitor {
     execFunc :: Int a => (a,a) 
                       -> a
                       -> ((a,a),a) 
-} deriving (Show)
-
--- | Scenario (rates) for SDA Manager kernel
---
--- inRates = Consumption rates
---    1: SDA from read operation kernel
---    2: SDA from write operation kernel
--- outRates = Production rates
---    1: SDA output of slave
--- execFunc = Function that models operation
-data ScenarSDAManager = ScenarSDAManager {
-    inRates  :: (Int,Int),
-    outRates :: Int,
-    execFunc :: Int a => a 
-                      -> a
-                      -> a
 } deriving (Show)
 
 -- | Scenario (rates) for read operation kernel
