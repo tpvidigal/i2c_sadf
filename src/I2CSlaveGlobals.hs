@@ -17,25 +17,21 @@
 module I2CSlaveGlobals (
 
   -- Address of the slave
-  SLAVEADDRESS,
+  slaveAddress,
 
   -- Scenario of condition kernels
-  ScenarioCondition,
+  ScenarCondition,
 
   -- Scenario of Address Monitor kernel
-  ScenarioAddressMonitor,
+  ScenarAddressMonitor,
 
   -- Scenario of Read operation kernel
-  ScenarioOpRead,
+  ScenarOpRead,
 
   -- Scenario of Write operation kernel
-  ScenarioOpWrite
+  ScenarOpWrite
 
 ) where
-
-import ForSyDe.Shallow
-import SADF
-import Data.Bits
 
 
 
@@ -44,7 +40,8 @@ import Data.Bits
 ---------------------------------------------------------
 
 -- | Slave address to be considered
-SLAVEADDRESS = 1
+slaveAddress :: Num a => a
+slaveAddress = 1
 
 
 
@@ -66,10 +63,10 @@ SLAVEADDRESS = 1
 data ScenarCondition = ScenarCondition {
     inRates  :: (Int,Int), 
     outRates :: Int, 
-    execFunc :: Int a => (a,a) 
-                      -> (a,a) 
-                      -> a 
-} deriving (Show)
+    execFunc :: (Int,Int) 
+             -> (Int,Int) 
+             -> Int
+}
 
 -- | Scenario (rates) for address monitor kernel
 --
@@ -83,10 +80,10 @@ data ScenarCondition = ScenarCondition {
 data ScenarAddressMonitor = ScenarAddressMonitor {
     inRates  :: (Int,Int),
     outRates :: (Int,Int),
-    execFunc :: Int a => (a,a) 
-                      -> a
-                      -> ((a,a),a) 
-} deriving (Show)
+    execFunc :: (Int,Int) 
+             -> Int
+             -> ((Int,Int),Int) 
+}
 
 -- | Scenario (rates) for read operation kernel
 --
@@ -103,12 +100,12 @@ data ScenarAddressMonitor = ScenarAddressMonitor {
 data ScenarOpRead = ScenarOpRead {
     inRates  :: (Int,Int,Int,Int),
     outRates :: (Int,Int,Int),
-    execFunc :: Int a => a
-                      -> a
-                      -> a
-                      -> a
-                      -> (a,a,a) 
-} deriving (Show)
+    execFunc :: Int
+             -> Int
+             -> Int
+             -> Int
+             -> (Int,Int,Int) 
+}
 
 -- | Scenario (rates) for write operation kernel
 --
@@ -125,12 +122,12 @@ data ScenarOpRead = ScenarOpRead {
 data ScenarOpWrite = ScenarOpWrite {
     inRates  :: (Int,Int,Int,Int),
     outRates :: (Int,Int,Int),
-    execFunc :: Int a => (a,a)
-                      -> a
-                      -> a
-                      -> a
-                      -> ((a,a),a,a) 
-} deriving (Show)
+    execFunc :: (Int,Int)
+             -> Int
+             -> Int
+             -> Int
+             -> ((Int,Int),Int,Int) 
+}
 
 -- | Scenario (rates) for SDA Manager kernel
 --
@@ -144,11 +141,11 @@ data ScenarOpWrite = ScenarOpWrite {
 data ScenarSDAManager = ScenarSDAManager {
     inRates  :: (Int,Int,Int),
     outRates :: Int,
-    execFunc :: Int a => a
-                      -> a
-                      -> a
-                      -> a
-} deriving (Show)
+    execFunc :: Int
+             -> Int
+             -> Int
+             -> Int
+}
 
 
 

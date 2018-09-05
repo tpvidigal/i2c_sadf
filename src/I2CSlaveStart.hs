@@ -23,6 +23,9 @@ module I2CSlaveStart (
 ) where
 
 import I2CSlaveGlobals
+import Data.Bits
+import ForSyDe.Shallow
+import SADF
 
 
 
@@ -37,11 +40,10 @@ import I2CSlaveGlobals
 conditStart :: Int a => (a,a) 
                      -> (a,a)
                      -> a
-conditStart pastInputs newInputs = start
-  where start
-    | pastInputs != (1,1) = 0
-    | newInputs  == (0,1) = 1
-    | otherwise           = 0
+conditStart pastInputs newInputs
+  | pastInputs /= (1,1) = 0
+  | newInputs  == (0,1) = 1
+  | otherwise           = 0
 
 -- | Create kernel
 -- Arg 1:  SDA and SCL values
@@ -83,9 +85,9 @@ nextScenar :: ScenarCondition
            -> (int, int)
            -> ScenarCondition
 nextScenar _ pastInputs newInputs
-    | pastInputs != (1,1) = idleScenar
-    | newInputs  == (0,1) = gotScenar
-    | otherwise           = idleScenar
+  | pastInputs /= (1,1) = idleScenar
+  | newInputs  == (0,1) = gotScenar
+  | otherwise           = idleScenar
 
 -- | Detector's input rate
 rates = (0,1)
