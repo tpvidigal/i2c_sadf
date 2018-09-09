@@ -37,9 +37,9 @@ import SADF
 -- Arg1: Past values of SDA and SCL
 -- Arg2: New values of SDA and SCL
 -- Ret1: START condition (or not)
-conditStart :: Int a => (a,a) 
-                     -> (a,a)
-                     -> a
+conditStart :: (Int,Int) 
+            -> (Int,Int)
+            -> Int
 conditStart pastInputs newInputs
   | pastInputs /= (1,1) = 0
   | newInputs  == (0,1) = 1
@@ -48,8 +48,8 @@ conditStart pastInputs newInputs
 -- | Create kernel
 -- Arg 1:  SDA and SCL values
 -- Return: If condition happened
-kernelStart :: Int a => Signal (a,a)
-                     -> Signal a
+kernelStart :: Signal (Int,Int)
+            -> Signal Int
 kernelStart newInputs = start
   where start      = kernel21SADF control pastInputs newInputs
         pastInputs = delaySADF initInputs newInputs
@@ -63,6 +63,7 @@ kernelStart newInputs = start
 ---------------------------------------------------------
 
 -- | Idle scenario
+idleScenar :: ScenarCondition
 idleScenar = ScenarCondition {
     inRates  = (1,1),
     outRates = 0,
@@ -102,8 +103,8 @@ select scenar = (1, [scenar])
 -- * Wires tuplet
 --     > SDA line
 --     > SCL line
-detectStart :: Int a => Signal (a,a)
-                     -> ScenarCondition
+detectStart :: Signal (Int,Int)
+            -> ScenarCondition
 detectStart newInputs = detector21SADF rates nextScenar select idleScenar pastInputs newInputs
   where pastInputs = delaySADF initInputs newInputs
         initInputs = Signal (1,1)

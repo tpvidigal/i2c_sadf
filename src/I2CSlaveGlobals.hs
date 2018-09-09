@@ -20,19 +20,20 @@ module I2CSlaveGlobals (
   slaveAddress,
 
   -- Scenario of condition kernels
-  ScenarCondition,
+  ScenarCondition (..),
 
   -- Scenario of Address Monitor kernel
-  ScenarAddressMonitor,
+  ScenarAddressMonitor (..),
 
   -- Scenario of Read operation kernel
-  ScenarOpRead,
+  ScenarOpRead (..),
 
   -- Scenario of Write operation kernel
-  ScenarOpWrite
+  ScenarOpWrite (..)
 
 ) where
 
+import Text.Show.Functions
 
 
 ---------------------------------------------------------
@@ -66,7 +67,7 @@ data ScenarCondition = ScenarCondition {
     execFunc :: (Int,Int) 
              -> (Int,Int) 
              -> Int
-}
+} deriving (Show)
 
 -- | Scenario (rates) for address monitor kernel
 --
@@ -83,7 +84,7 @@ data ScenarAddressMonitor = ScenarAddressMonitor {
     execFunc :: (Int,Int) 
              -> Int
              -> ((Int,Int),Int) 
-}
+} deriving (Show)
 
 -- | Scenario (rates) for read operation kernel
 --
@@ -105,7 +106,7 @@ data ScenarOpRead = ScenarOpRead {
              -> Int
              -> Int
              -> (Int,Int,Int) 
-}
+} deriving (Show)
 
 -- | Scenario (rates) for write operation kernel
 --
@@ -127,7 +128,7 @@ data ScenarOpWrite = ScenarOpWrite {
              -> Int
              -> Int
              -> ((Int,Int),Int,Int) 
-}
+} deriving (Show)
 
 -- | Scenario (rates) for SDA Manager kernel
 --
@@ -145,7 +146,7 @@ data ScenarSDAManager = ScenarSDAManager {
              -> Int
              -> Int
              -> Int
-}
+} deriving (Show)
 
 
 
