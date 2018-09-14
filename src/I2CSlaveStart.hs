@@ -53,8 +53,8 @@ kernelStart :: Signal (Int,Int)
 kernelStart newInputs = start
   where start      = kernel21SADF control pastInputs newInputs
         pastInputs = delaySADF initInputs newInputs
-        initInputs = Signal (1,1)
-        control    = detectStart
+        initInputs = [(1,1)]
+        control    = signal [detectStart newInputs]
 
 
 
