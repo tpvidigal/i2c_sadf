@@ -14,32 +14,43 @@
 --
 -----------------------------------------------------------------------------
 
-module I2CSlaveStart_tb (
-
-  -- Testbench run
-  runI2CSlaveStart
-
-) where
+module I2CSlaveStart_tb
+where
 
 import I2CSlaveStart
+import ForSyDe.Shallow
 
-runI2CSlaveStart :: Signal a => (a,a,a)
-runI2CSlaveStart = (sda, scl, condition)
-  where sda       = [1,1,1,0,0,1,1,1,1,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,1,1]
-        scl       = [1,1,1,1,0,1,0,1,0,0,0,1,0,1,1,0,1,1,0,1,0,1,0,1,1,1,1]
-        condition = kernelStart $ signal (getLines sda scl)
+main = do let sda = [1,1,1,0,0,1,1,1,1,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,1,1]
+          let scl = [1,1,1,1,0,1,0,1,0,0,0,1,0,1,1,0,1,1,0,1,0,1,0,1,1,1,1]
+          let wireValues = zip sda scl
+          let expected = conditStart wireValues
+          let result   = fromSignal $ kernelStart $ signal wireValues
+          putStrLn ""
+          putStr "SDA:      "
+          print sda
+          putStr "SCL:      "
+          print scl
+          putStrLn ""
+          putStr "Expected: "
+          print expected
+          putStr "Result:   "
+          print result
+          if(expected == result) then do
+              putStrLn ""
+              putStrLn "####### PASSED #######"
+          else do
+              putStr "Diff:     "
+              putStrLn $ diffResult expected result
+              putStrLn ""
+              putStrLn "####### FAILED #######"
+          putStrLn ""
 
------------------------------------------------------------------------------
 
-getLines :: [a] -> [b] -> [(a,b)]
-getLines (x:xs) (y:ys)
-  | xs==ys==[] = [(x,y)]
-  | xs==[]     = error "First array ended before second one" 
-  | ys==[]     = error "Second array ended before first one" 
-  | otherwise  = [(x,y)] ++ getLines xs ys
-
-
-
-
-
+diffResult :: [Int] -> [Int] -> String
+diffResult exp res = markDiff (zip exp res)
+  where markDiff [] = "_"
+        markDiff ((x,y):xs)
+          | x==y      = "__" ++ markDiff xs
+          | otherwise = "_|" ++ markDiff xs
+              
 
