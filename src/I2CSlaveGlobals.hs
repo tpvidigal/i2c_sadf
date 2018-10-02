@@ -53,21 +53,13 @@ slaveAddress = 1
 -- | Scenario (rates) for a condition kernel
 --
 -- inRates = Consumption rates
---    1: SDA line value
---    2: SCL line value
+--    1: SDA and SCL lines value
 -- outRates = Production rates
 --    1: condition occurred
 -- execFunc = Function that models operation
---    Arg 1:  previous lines' values
---    Arg 2:  lines' values token
+--    Arg 1:  lines' values token
 --    Return: condition token
-data ScenarCondition = ScenarCondition {
-    inRates  :: (Int,Int), 
-    outRates :: Int, 
-    execFunc :: (Int,Int) 
-             -> (Int,Int) 
-             -> Int
-} deriving (Show)
+type ScenarCondition = (Int, Int, [(Int,Int)] -> [Int])
 
 -- | Scenario (rates) for address monitor kernel
 --
@@ -78,13 +70,7 @@ data ScenarCondition = ScenarCondition {
 --    1: New feedback
 --    2: Read operation (or write)
 -- execFunc = Function that models operation
-data ScenarAddressMonitor = ScenarAddressMonitor {
-    inRates  :: (Int,Int),
-    outRates :: (Int,Int),
-    execFunc :: (Int,Int) 
-             -> Int
-             -> ((Int,Int),Int) 
-} deriving (Show)
+type ScenarAddressMonitor = ((Int,Int), (Int,Int), [(Int,Int)] -> [Int] -> [((Int,Int),Int)])
 
 -- | Scenario (rates) for read operation kernel
 --
@@ -98,15 +84,7 @@ data ScenarAddressMonitor = ScenarAddressMonitor {
 --    2: Done signal
 --    3: SDA value from Slave
 -- execFunc = Function that models operation
-data ScenarOpRead = ScenarOpRead {
-    inRates  :: (Int,Int,Int,Int),
-    outRates :: (Int,Int,Int),
-    execFunc :: Int
-             -> Int
-             -> Int
-             -> Int
-             -> (Int,Int,Int) 
-} deriving (Show)
+type ScenarOpRead = ((Int,Int,Int,Int), (Int,Int,Int), [Int] -> [Int] -> [Int] -> [Int] -> [(Int,Int,Int)])
 
 -- | Scenario (rates) for write operation kernel
 --
@@ -120,15 +98,7 @@ data ScenarOpRead = ScenarOpRead {
 --    2: Received byte
 --    3: SDA value from Slave
 -- execFunc = Function that models operation
-data ScenarOpWrite = ScenarOpWrite {
-    inRates  :: (Int,Int,Int,Int),
-    outRates :: (Int,Int,Int),
-    execFunc :: (Int,Int)
-             -> Int
-             -> Int
-             -> Int
-             -> ((Int,Int),Int,Int) 
-} deriving (Show)
+type ScenarOpWrite = ((Int,Int,Int,Int), (Int,Int,Int), [(Int,Int)] -> [Int] -> [Int] -> [Int] -> [((Int,Int),Int,Int)])
 
 -- | Scenario (rates) for SDA Manager kernel
 --
@@ -139,14 +109,7 @@ data ScenarOpWrite = ScenarOpWrite {
 -- outRates = Production rates
 --    1: SDA output of Slave
 -- execFunc = Function that models operation
-data ScenarSDAManager = ScenarSDAManager {
-    inRates  :: (Int,Int,Int),
-    outRates :: Int,
-    execFunc :: Int
-             -> Int
-             -> Int
-             -> Int
-} deriving (Show)
+type ScenarSDAManager = ((Int,Int,Int), Int, [Int] -> [Int] -> [Int] -> [Int])
 
 
 
