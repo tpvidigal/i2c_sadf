@@ -27,9 +27,9 @@ main = do let sda = [1,1,1,0,0,1,1,1,1,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,1,1]
           let result   = fromSignal $ kernelStart $ signal wireValues
           putStrLn ""
           putStr "SDA:      "
-          print sda
+          putStrLn $ drawWave sda
           putStr "SCL:      "
-          print scl
+          putStrLn $ drawWave scl
           putStrLn ""
           putStr "Expected: "
           print expected
@@ -53,4 +53,21 @@ diffResult exp res = markDiff (zip exp res)
           | x==y      = "__" ++ markDiff xs
           | otherwise = "_|" ++ markDiff xs
               
+
+drawWave :: [Int] -> String
+drawWave [] = ""
+drawWave xs
+  | head xs == 1 = "¨¨¨" ++ (stepWave xs)
+  | head xs == 0 = "___" ++ (stepWave xs)
+  | otherwise    = "XXX" ++ (stepWave xs)
+
+stepWave :: [Int] -> String
+stepWave []  = []
+stepWave [_] = []
+stepWave (x:y:xs) = step (x,y) ++ stepWave (y:xs)
+  where step (0,0) = "__"
+        step (0,1) = "/¨"
+        step (1,0) = "\\_"
+        step (1,1) = "¨¨"
+        step _     = "XX"
 
