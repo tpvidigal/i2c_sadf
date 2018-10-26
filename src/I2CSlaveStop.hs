@@ -18,11 +18,17 @@
 module I2CSlaveStop (
 
   -- Kernel of STOP condition
-  kernelStop
+  kernelStop,
+
+  -- STOP condition detection function
+  conditStop
 
 ) where
 
 import I2CSlaveGlobals
+import Data.Bits
+import ForSyDe.Shallow
+import SADF
 
 
 
@@ -31,80 +37,47 @@ import I2CSlaveGlobals
 ---------------------------------------------------------
 
 -- | STOP condition definition
--- Arg1: Past values of SDA and SCL
--- Arg2: New values of SDA and SCL
+-- Basically a transition from (0,1) to (1,1)  will
+-- define a STOP condition. So an inputSequence list
+-- is created, which is a list of tuples that contains
+-- the 'current' values of SDA/SCL and 'past' values.
+-- That way, we can map a function that check those
+-- values (checkStop) and generate a list of STOP
+-- condition occurrences.
+--
+-- Arg1: Values of SDA and SCL
 -- Ret1: STOP condition (or not)
-conditStop :: Int a => (a,a) 
-                    -> (a,a)
-                    -> a
-conditStop pastInputs newInputs = stop
-  where stop
-    | pastInputs != (0,1) = 0
-    | newInputs  == (1,1) = 1
-    | otherwise           = 0
+conditStop :: [(Int,Int)] 
+           -> [Int]
+conditStop []     = []
+conditStop inputs = map checkStop inputSequence
+  where pastInputs    = (1,1) : (init inputs)
+        inputSequence = (zip pastInputs inputs)
+        checkStop (past, current)
+          | past     /= (0,1) = 0
+          | current  == (1,1) = 1
+          | otherwise         = 0
+
+-- | STOP scenario
+stopScenar :: ScenarCondition
+stopScenar = (1, 1, conditStop)
+
+-- | Scenarios for FSM of kernel
+-- Create a list of the scenarios that the kernel will
+-- be for each input combination. In this case, we
+-- always are at the same scenario.
+scenarios :: Signal (Int,Int)
+          -> Signal ScenarCondition
+scenarios inputs = signal $ take (lengthS inputs) $ repeat stopScenar
 
 -- | Create kernel
 -- Arg 1:  SDA and SCL values
 -- Return: If condition happened
-kernelStop :: Int a => Signal (a,a)
-                    -> Signal a
-kernelStop newInputs = stop
-  where stop       = kernel21SADF control pastInputs newInputs
-        pastInputs = delaySADF initInputs newInputs
-        initInputs = Signal (1,1)
-        control    = detectStop
-
-
-
----------------------------------------------------------
--- Detector
----------------------------------------------------------
-
--- | Idle scenario
-idleScenar = ScenarCondition {
-    inRates  = (1,1),
-    outRates = 0,
-    execFunc = conditStop
-}
-
--- | Got scenario
-gotScenar = ScenarCondition {
-    inRates  = (1,1),
-    outRates = 1,
-    execFunc = conditStop
-}
-
--- | Next scenario(s)
--- Inputs
--- * Past values of SDA and SCL
--- * New values of SDA and SCL
-nextScenar :: ScenarCondition
-           -> (Int, Int)
-           -> (int, int)
-           -> ScenarCondition
-nextScenar _ pastInputs newInputs
-    | pastInputs != (0,1) = idleScenar
-    | newInputs  == (1,1) = gotScenar
-    | otherwise           = idleScenar
-
--- | Detector's input rate
-rates = (0,1)
-
--- | Detector's scenario selection
-select :: ScenarCondition
-       -> (Int, [ScenarCondition])
-select scenar = (1, [scenar])
-
--- | Detector for FSM of kernel
--- Inputs tokens
--- * Wires tuplet
---     > SDA line
---     > SCL line
-detectStop :: Int a => Signal (a,a)
-                    -> ScenarCondition
-detectStop newInputs = detector21SADF rates nextScenar select idleScenar pastInputs newInputs
-  where pastInputs = delaySADF initInputs newInputs
-        initInputs = Signal (1,1)
+kernelStop :: Signal (Int,Int)
+           -> Signal Int
+kernelStop inputs = stop
+  where stop      = kernel11SADF control inputs
+        control   = scenarios inputs
 
 
 

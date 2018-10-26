@@ -23,7 +23,8 @@ import ForSyDe.Shallow
 main = do let sda = [1,1,1,0,0,1,1,1,1,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,1,1]
           let scl = [1,1,1,1,0,1,0,1,0,0,0,1,0,1,1,0,1,1,0,1,0,1,0,1,1,1,1]
           let wireValues = zip sda scl
-          let expected = conditStart wireValues
+          let pastWireValues = [(1,1)] ++ (init wireValues)
+          let expected = conditStart wireValues pastWireValues
           let result   = fromSignal $ kernelStart $ signal wireValues
           putStrLn ""
           putStr "SDA:      "

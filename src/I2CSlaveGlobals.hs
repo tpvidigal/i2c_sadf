@@ -59,7 +59,7 @@ slaveAddress = 1
 -- execFunc = Function that models operation
 --    Arg 1:  lines' values token
 --    Return: condition token
-type ScenarCondition = (Int, Int, [(Int,Int)] -> [Int])
+type ScenarCondition = ((Int,Int), Int, [(Int,Int)] -> [(Int,Int)] -> [Int])
 
 -- | Scenario (rates) for address monitor kernel
 --

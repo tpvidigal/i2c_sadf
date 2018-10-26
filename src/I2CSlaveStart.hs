@@ -48,11 +48,11 @@ import SADF
 -- Arg1: Values of SDA and SCL
 -- Ret1: START condition (or not)
 conditStart :: [(Int,Int)] 
+            -> [(Int,Int)] 
             -> [Int]
-conditStart []     = []
-conditStart inputs = map checkStart inputSequence
-  where pastInputs    = (1,1) : (init inputs)
-        inputSequence = (zip pastInputs inputs)
+conditStart [] _   = []
+conditStart inputs pastInputs = map checkStart inputSequence
+  where inputSequence = (zip pastInputs inputs)
         checkStart (past, current)
           | past     /= (1,1) = 0
           | current  == (0,1) = 1
@@ -60,7 +60,7 @@ conditStart inputs = map checkStart inputSequence
 
 -- | START scenario
 startScenar :: ScenarCondition
-startScenar = (1, 1, conditStart)
+startScenar = ((1,1), 1, conditStart)
 
 -- | Scenarios for FSM of kernel
 -- Create a list of the scenarios that the kernel will
@@ -73,11 +73,17 @@ scenarios inputs = signal $ take (lengthS inputs) $ repeat startScenar
 -- | Create kernel
 -- Arg 1:  SDA and SCL values
 -- Return: If condition happened
+--
+-- NOTE: here we are creating an implicit FSM...
+--       Is this allowed in the SADF framework
+--       or should all the kernels behaviours
+--       be stateless?
 kernelStart :: Signal (Int,Int)
             -> Signal Int
 kernelStart inputs = start
-  where start      = kernel11SADF control inputs
+  where start      = kernel21SADF control inputs pastInputs
         control    = scenarios inputs
+        pastInputs = delaySADF [(1,1)] inputs
 
 
 
