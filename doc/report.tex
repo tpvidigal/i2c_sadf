@@ -1,26 +1,26 @@
-Implementation of I2C Slave in Scenario-Aware Data Flow Model of Computation using ForSyDe
-T. P. Vidigal, Digital IC Trainer, tvidigal@be-kurios.com
+\title{Implementation of I2C Slave in Scenario-Aware Data Flow Model of Computation using ForSyDe}
+\author{Tiago Pereira Vidigal}
 
 \section{Introduction}
-- Talk about SADF
-- Talk about ForSyDe
-- Talk about I2C
-- Objective is to implement I2C Slave module using MoC SADF in ForSyDe
+% Talk about SADF
+% Talk about ForSyDe
+% Talk about I2C
+% Objective is to implement I2C Slave module using MoC SADF in ForSyDe
 
 \section{I2C Bus and Protocol}
-- resume the "1. Introduction" section of standard
+% resume the "1. Introduction" section of standard
 \subsection{Specification}
 \subsection{Protocol}
 \subsection{Mandatory Features}
 
 \section{I2C Slave}
-- show image of pinout
-- I2C Slave, only mandatory features
-- Brief about parts (basic signals, address, operations)
-- show image of overview
-- START/STOP conditions can occur at any time
-- Because of that, we can't accumulate tokens
-- requires to consume tokens every iteration
+% show image of pinout
+% I2C Slave, only mandatory features
+% Brief about parts (basic signals, address, operations)
+% show image of overview
+% START/STOP conditions can occur at any time
+% Because of that, we can't accumulate tokens
+% requires to consume tokens every iteration
 \subsection{Basic signals}
 \subsection{Address Monitor}
 \subsection{Operations}
@@ -31,21 +31,21 @@ T. P. Vidigal, Digital IC Trainer, tvidigal@be-kurios.com
 \subsection{I2CSlaveStart_tb}
 
 \section{Results}
-- still implementing, but have some partial results
-- I2CSlaveStart completly validated
-- Testbench "prints" (show how it shows if results are wrong)
+% still implementing, but have some partial results
+% I2CSlaveStart completly validated
+% Testbench "prints" (show how it shows if results are wrong)
 
 \section{Conclusion}
-- SADF not an interesting MoC for I2C due unexpected START/STOP conditions
+% SADF not an interesting MoC for I2C due unexpected START/STOP conditions
 
-- SDF/SADF libraries have not an optimal implementation
-- the use of tuples obligates the implementation the way it is
-- ref: https://jayconrod.com/posts/14/currying-and-why-we-don-t-pass-arguments-as-tuples
-- a class approach would bring many benefits
+% SDF/SADF libraries have not an optimal implementation
+% the use of tuples obligates the implementation the way it is
+% ref: https://jayconrod.com/posts/14/currying-and-why-we-don-t-pass-arguments-as-tuples
+% a class approach would bring many benefits
 
-- kernel using feedback generates an implicit state... is this valid in SADF?
+% kernel using feedback generates an implicit state... is this valid in SADF?
 
-- Next works: complete the I2C Slave
+% Next works: complete the I2C Slave
 
 
 
