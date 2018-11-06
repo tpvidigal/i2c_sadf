@@ -1,19 +1,35 @@
+\documentclass{article}
+\usepackage{listings}
+\begin{document}
+
+%=================================================================================
+
 \title{Implementation of I2C Slave in Scenario-Aware Data Flow Model of Computation using ForSyDe}
 \author{Tiago Pereira Vidigal}
+\maketitle
 
-\section{Introduction}
+%=================================================================================
+
+\section{Introduction} \label{sec-intro}
 % Talk about SADF
 % Talk about ForSyDe
 % Talk about I2C
 % Objective is to implement I2C Slave module using MoC SADF in ForSyDe
 
-\section{I2C Bus and Protocol}
+%=================================================================================
+
+\section{I2C Bus and Protocol} \label{sec-proto}
 % resume the "1. Introduction" section of standard
+%=========================
 \subsection{Specification}
+%=========================
 \subsection{Protocol}
+%=========================
 \subsection{Mandatory Features}
 
-\section{I2C Slave}
+%=================================================================================
+
+\section{I2C Slave} \label{sec-slave}
 % show image of pinout
 % I2C Slave, only mandatory features
 % Brief about parts (basic signals, address, operations)
@@ -21,32 +37,141 @@
 % START/STOP conditions can occur at any time
 % Because of that, we can't accumulate tokens
 % requires to consume tokens every iteration
+%=========================
 \subsection{Basic signals}
+%=========================
 \subsection{Address Monitor}
+%=========================
 \subsection{Operations}
 
-\section{Implementation}
+%=================================================================================
+
+\section{Implementation} \label{sec-imple}
+The implementation was divided in multiple files. Each process contains it's own file to improve manutenability. The following tree was generated according to what was discussed in Section \ref{sec-slave}.
+\begin{lstlisting}[frame=single, basicstyle=\small, caption={Files of implementation}, captionpos=b]
+src
+|-- I2CSlaveAddressMonitor.hs
+|-- I2CSlaveGlobals.hs
+|-- I2CSlave.hs
+|-- I2CSlaveNegedge.hs
+|-- I2CSlaveOpControl.hs
+|-- I2CSlaveOpRead.hs
+|-- I2CSlaveOpWrite.hs
+|-- I2CSlavePosedge.hs
+|-- I2CSlaveSDAManager.hs
+|-- I2CSlaveStart.hs
+|-- I2CSlaveStop.hs
+'-- SADF.hs
+\end{lstlisting}
+Many of those processes are currently under development. The focus of this report will be the I2CSlaveStart kernel. The auxiliary file I2CSlaveGlobals is used by all the files, so will be described as well.
+
+%=========================
 \subsection{I2CSlaveGlobals}
+
+The I2CSlaveGlobals is a unified source for all the types and constants used throughout the system. At ForSyDe, no classes were defined to model the inputs for SADF MoC. Aliases were created to bypass this lack, improving readability and manutenability of the program.
+\begin{lstlisting}[frame=single, basicstyle=\small, language={Haskell}, caption={Alias for the Condition's scenario type}, captionpos=b]
+-- | Scenario (rates) for a condition kernel
+--
+-- inRates = Consumption rates
+--    1: SDA and SCL lines current value
+--    2: SDA and SCL lines past value
+-- outRates = Production rates
+--    1: condition occurred (or not)
+-- execFunc = Function that models operation
+--    Arg 1:  current values token
+--    Arg 2:  past values token
+--    Return: condition token
+type ScenarCondition = ((Int,Int),
+                        Int,
+                        [(Int,Int)] -> [(Int,Int)] -> [Int])
+\end{lstlisting}
+
+%=========================
 \subsection{I2CSlaveStart}
-\subsection{I2CSlaveStart_tb}
 
-\section{Results}
+The I2CSlaveStart is a kernel responsible for detecting START conditions. This is done by checking both current and past values of the I2C bus. A feedback provides the previous values, while the current comes directly from the input.
+A START condition happens when both SDA and SCL were high and then only SDA drops. In this case, the output token will be generated with the value '1'. Otherwise, the token will contain the value '0'.
+\begin{lstlisting}[frame=single, basicstyle=\small, language={Haskell}, caption={START condition detector in Haskell}, captionpos=b, label={func-behaviour}]
+conditStart :: [(Int,Int)]
+            -> [(Int,Int)]
+            -> [Int]
+conditStart [] _   = []
+conditStart inputs pastInputs = map checkStart inputSequence
+  where inputSequence = (zip pastInputs inputs)
+        checkStart (past, current)
+          | past     /= (1,1) = 0
+          | current  == (0,1) = 1
+          | otherwise         = 0
+\end{lstlisting}
+
+Once it's a simple process, a single function and scenario are required for it's operation. That way, the only scenario in which the kernel will operate is 'startScenar'.
+\begin{lstlisting}[frame=single, basicstyle=\small, language={Haskell}, caption={Unique START condition scenario}, captionpos=b]
+-- | START scenario
+startScenar :: ScenarCondition
+startScenar = ((1,1), 1, conditStart)
+\end{lstlisting}
+
+We could leave the kernel without a control port, as pointed in \{REFERENCE TO A Scenario-Aware Data Flow for Combined...\}. The SADF library don't have such implementation, so a list of 'startScenar' is used instead of a detector process. This approach simplifies the process and improves readability.
+\begin{lstlisting}[frame=single, basicstyle=\small, language={Haskell}, caption={START condition kernel with constant scenario}, captionpos=b]
+kernelStart :: Signal (Int,Int)
+            -> Signal Int
+kernelStart inputs = start
+  where start      = kernel21SADF control inputs pastInputs
+        control    = signal (repeat startScenar)
+        pastInputs = delaySADF [(1,1)] inputs
+\end{lstlisting}
+
+%=========================
+\subsection{I2CSlaveStart\_tb}
+
+To validate the I2CStart kernel, a simple testbench was developed. Two lists describe the oversampled values of both lines: SDA and SCL. The testbench prepares it to act as the input of 'conditStart' function (see listing \ref{func-behaviour}).
+The correctness is shown via terminal. Expected values list is obtained directly with 'conditStart'. Result values list is obtained with 'kernelStart'. Those are compared and the success or failure is printed. Diff list indicates mismatches.
+
+\begin{lstlisting}[frame=single, basicstyle=\small, caption={I2CSlaveStart\_tb failure screen example}, captionpos=b]
+SDA:      """\___/"""""""\_________/"""""\_______________/"""
+SCL:      """""\_/"\_/"\_____/"\_/"""\_/"""\_/"\_/"\_/"""""""
+
+Expected: [0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0]
+Result:   [0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,1,0,1,1,0,0]
+Diff:     ___________________|___|___________|___|___|_|_____
+
+####### FAILED #######
+\end{lstlisting}
+
+Testbenches are executed at the 'tb' directory. The most direct way to run is using 'runhaskell' and selecting the desired testbench. It's necessary to include the source directory for the compilation.
+
+\begin{lstlisting}[frame=single, basicstyle=\small, caption={How to run testbench}, captionpos=b]
+cd tb
+runhaskell -i../src I2CSlaveStart_tb.hs
+\end{lstlisting}
+
+%=================================================================================
+
+\section{Results} \label{sec-resul}
 % still implementing, but have some partial results
-% I2CSlaveStart completly validated
-% Testbench "prints" (show how it shows if results are wrong)
+The I2C Slave complete implementation is still pending. However, partial results with the 'I2CSlaveStart' kernel helped to plan an organized structure for implementation of the rest of the system. 
 
-\section{Conclusion}
+% I2CSlaveStart completely validated
+The alias approach reduced the verbosity required by the SADF library. A separated file for the process is a good approach to simplify search and improve organization when multiple processes are required.
+The developed testbench tries all combinations of the pair current and past values of the lines. The Start condition kernel is fully validated once all results matched the expected values. All basic signal processes can be implemented with very little adaptation from it.
+
+%=================================================================================
+
+\section{Conclusion} \label{sec-concl}
 % SADF not an interesting MoC for I2C due unexpected START/STOP conditions
+The SADF MoC is not very interesting to implement I2C. That's because Start and Stop conditions can occur at any time. This specification requires that all blocks monitor the basic signals on every iteration. Token accumulation will cause desynchronization, so all tokens must be consumed immediately.
 
 % SDF/SADF libraries have not an optimal implementation
 % the use of tuples obligates the implementation the way it is
 % ref: https://jayconrod.com/posts/14/currying-and-why-we-don-t-pass-arguments-as-tuples
 % a class approach would bring many benefits
 
+
 % kernel using feedback generates an implicit state... is this valid in SADF?
+The implementation created a feedback at the kernel, so past input values would be available for the next iteration. This generates an implicit state at the kernel and this might not follow the SADF modelling. This should be confirmed with further studies.
 
 % Next works: complete the I2C Slave
+The next step will be to fully implement the I2C Slave. Another four testbenches will be implemented, each with a different Design Under Test (DUT): all basic signals, address monitor processes, operation processes and top level. Also an alternative implementation in Chisel could bring interesting topics for comparison.
 
 
-
-
+\end{document}
