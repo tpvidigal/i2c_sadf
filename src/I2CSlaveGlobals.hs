@@ -53,12 +53,14 @@ slaveAddress = 1
 -- | Scenario (rates) for a condition kernel
 --
 -- inRates = Consumption rates
---    1: SDA and SCL lines value
+--    1: SDA and SCL lines current value
+--    2: SDA and SCL lines past value
 -- outRates = Production rates
---    1: condition occurred
+--    1: condition occurred (or not)
 -- execFunc = Function that models operation
---    Arg 1:  lines' values token
---    Return: condition token
+--    Arg 1:  current values token
+--    Arg 2:  past values token
+--    Return: condition token 
 type ScenarCondition = ((Int,Int), Int, [(Int,Int)] -> [(Int,Int)] -> [Int])
 
 -- | Scenario (rates) for address monitor kernel

@@ -62,14 +62,6 @@ conditStart inputs pastInputs = map checkStart inputSequence
 startScenar :: ScenarCondition
 startScenar = ((1,1), 1, conditStart)
 
--- | Scenarios for FSM of kernel
--- Create a list of the scenarios that the kernel will
--- be for each input combination. In this case, we
--- always are at the same scenario.
-scenarios :: Signal (Int,Int)
-          -> Signal ScenarCondition
-scenarios inputs = signal $ take (lengthS inputs) $ repeat startScenar
-
 -- | Create kernel
 -- Arg 1:  SDA and SCL values
 -- Return: If condition happened
@@ -82,7 +74,7 @@ kernelStart :: Signal (Int,Int)
             -> Signal Int
 kernelStart inputs = start
   where start      = kernel21SADF control inputs pastInputs
-        control    = scenarios inputs
+        control    = signal (repeat startScenar)
         pastInputs = delaySADF [(1,1)] inputs
 
 
