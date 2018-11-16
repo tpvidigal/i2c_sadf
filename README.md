@@ -14,3 +14,5 @@ You can run simulations at 'tb' directory.
   >$ cd tb
 To run START condition kernel:
   >$ make run_start
+To generate a report of PASSED/FAILED tests:
+  >$ make report
