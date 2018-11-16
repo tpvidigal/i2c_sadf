@@ -23,7 +23,7 @@ report:
 	@echo " "
 	@grep -r -l "PASSED" ../log || true
 	@echo " "
-	@echo "== Tests that PASSED =========="
+	@echo "== Tests that FAILED =========="
 	@echo " "
 	@grep -r -l "FAILED" ../log || true
 	@echo " "
