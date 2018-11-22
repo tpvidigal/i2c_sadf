@@ -1,12 +1,13 @@
 \documentclass{article}
 \usepackage{listings}
 \usepackage{graphicx}
+\usepackage{hyperref}
 \begin{document}
 
 %=================================================================================
 
 \title{Implementation of I2C Slave in Scenario-Aware Data Flow Model of Computation using ForSyDe}
-\author{Tiago Pereira Vidigal}
+\author{Tiago Pereira Vidigal \\ \href{mailto:tvidigal@be-kurios.com}{tvidigal@be-kurios.com} }
 \maketitle
 
 %=================================================================================
@@ -32,7 +33,7 @@
 
 \section{I2C Slave} \label{sec:slave}
 % I2C Slave, only mandatory features
-The case of study in this project is an I2C slave module. For simplicity, only the mandatory features are implemented. It's responsible of converting user requests into the equivalent I2C stimulus. As a standard, user signals are orange, while I2C signals are grey.
+The case of study in this project is an I2C slave module. It's responsible of converting user requests into the equivalent I2C stimulus. For simplicity, only the mandatory features are implemented. As a standard, user signals are orange, while I2C signals are grey.
 
 % show image of pinout
 \begin{figure}
@@ -42,7 +43,7 @@ The case of study in this project is an I2C slave module. For simplicity, only t
 \end{figure}
 
 % Brief about parts (basic signals, address, operations)
-It's implementation is divided in 3 parts: basic signals, address monitor and operations. The basic signals are a group of processes responsible for generating basic control tokens, like START and STOP conditions, as well as positive and negative edge of SCL. Address monitor is responsible of getting the address sent by the Master and checking if it matches the slave's address. Operations is the biggest part and takes care of all read and write features.
+The implementation is divided in 3 parts: basic signals, address monitor and operations. The basic signals are a group of processes responsible for generating basic control tokens, like START and STOP conditions. Address monitor is responsible for getting the address sent by the Master and checking if it matches the slave's address. Operations is the biggest part and takes care of all read and write features.
 
 % show image of overview
 \begin{figure}
@@ -54,25 +55,29 @@ It's implementation is divided in 3 parts: basic signals, address monitor and op
 % START/STOP conditions can occur at any time
 % Because of that, we can't accumulate tokens
 % requires to consume tokens every iteration
-The I2C protocol defines a synchronous communication. However, START and STOP conditions are assynchronous and can happen at any time. An oversampling of the transmission lines is required and every value must be analyzed. This causes that processes always consume one token of I2C and basic signals, so they can keep up with unexpected conditions. Accumulation of those tokens was considered impossible for the implementation.
+The I2C protocol defines a synchronous communication. However, START and STOP conditions are asynchronous and can happen at any time. An oversampling of the transmission lines is required and every value must be analyzed. This causes that processes consume one token of I2C and basic signals every iteration, so they can keep up with unexpected conditions. Accumulation of those tokens was considered impossible for the implementation.
 
 %=========================
 \subsection{Basic signals}
-Basic signals are auxiliary control tokens that give informations of the current (SDA,SCL) tuple. Their objective is to simplify the other processes. They are simple kernels with a single scenario, but with a feedback with the previous tuple.
+Basic signals are auxiliary control tokens that give information of the current (SDA,SCL) tuple. Their objective is to simplify the other processes. They are simple kernels with a single scenario, but with a feedback with the previous tuple.
 \begin{figure}
   \includegraphics[width=\linewidth]{img/block_basic.png}
   \caption{Basic signals in SADF}
   \label{fig:block_basic}
 \end{figure}
 
+The 'start' and 'stop' tokens inform if the current iteration presents a START or STOP condition respectively. Similarly, 'sclPosedge' and 'sclNegedge' indicate if SCL presented an positive or negative edge respectively. These tokens are generate for each sample of the I2C lines and their value represent if the basic signal occurred (1) or not (0).
+
 %=========================
 \subsection{Address Monitor}
-Address monitor will wait until a START condition occur. In this case, it records the next 7 received bits and check if it's equal to the slave's address. If matches, the next bit is defines which operation will be performed: Master Read or Master Write.
+Address monitor will wait until a START condition occur. In this case, it records the next 7 received bits and check if it's equal to the slave's address. If matches, the next bit defines which operation will be performed: Master Read or Master Write.
 \begin{figure}
   \includegraphics[width=\linewidth]{img/block_address.png}
   \caption{Address Monitor in SADF}
   \label{fig:block_address}
 \end{figure}
+
+The kernel always generate tokens indicating both read and write operations are deactive (0). The detector is responsible for the START/STOP detection and checking the address. If the address received match, the detector changes the kernel's scenario to activate (1) the respective operation.
 
 %=========================
 \subsection{Operations}
@@ -83,7 +88,9 @@ The operations are implemented with 3 detectors and 3 kernels. The detectors wer
   \label{fig:block_control}
 \end{figure}
 
-The operations are implemented by the respective blocks. They should never operate at the same time and they send tokens only to the SDA Manager. The manager is responsible for defining the output value in the negative edge of the SCL. On these blocks, user signals are used to define how the slave should behave during the transmission.
+The operations are implemented by the respective blocks. They should never operate at the same time and they send tokens only to the SDA Manager. The manager is responsible for defining the output value in the negative edge of the SCL.
+
+On these blocks, user signals are used to define how the slave should behave during the transmission. The signal 'byteWrite' contains the byte to be sent by the Slave, while 'byteRead' the one read by it. The signal 'keepRead' indicates if Slave should ACK or NACK after receiving the next byte and 'doneWrite' inform that a byte was successfully sent.
 \begin{figure}
   \includegraphics[width=\linewidth]{img/block_read.png}
   \caption{Operation Master Read kernel in SADF}
@@ -103,7 +110,7 @@ The operations are implemented by the respective blocks. They should never opera
 %=================================================================================
 
 \section{Implementation} \label{sec:imple}
-The implementation was divided in multiple files. Each process contains it's own file to improve manutenability. The following tree was generated according to what was discussed in Section \ref{sec:slave}.
+The implementation was divided in multiple files. Each process contains it's own file to improve maintainability. The following tree was generated according to what was discussed in Section \ref{sec:slave}.
 \begin{lstlisting}[frame=single, basicstyle=\small, caption={Files of implementation}, captionpos=b]
 src
 |-- I2CSlaveAddressMonitor.hs
@@ -124,7 +131,7 @@ Many of those processes are currently under development. The focus of this repor
 %=========================
 \subsection{I2CSlaveGlobals}
 
-The I2CSlaveGlobals is a unified source for all the types and constants used throughout the system. At ForSyDe, no classes were defined to model the inputs for SADF MoC. Aliases were created to bypass this lack, improving readability and manutenability of the program.
+The I2CSlaveGlobals is a unified source for all the types and constants used throughout the system. At ForSyDe, no classes were defined to model the inputs for SADF MoC. Aliases were created to bypass this lack, improving readability and maintainability of the program.
 \begin{lstlisting}[frame=single, basicstyle=\small, language={Haskell}, caption={Alias for the Condition's scenario type}, captionpos=b]
 -- | Scenario (rates) for a condition kernel
 --
@@ -204,6 +211,13 @@ runhaskell -i../src I2CSlaveStart_tb.hs
 %=================================================================================
 
 \section{Results} \label{sec:resul}
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{img/block_full.png}
+  \caption{Final system SADF model}
+  \label{fig:block_full}
+\end{figure}
+
 % still implementing, but have some partial results
 The I2C Slave complete implementation is still pending. However, partial results with the 'I2CSlaveStart' kernel helped to plan an organized structure for implementation of the rest of the system. 
 

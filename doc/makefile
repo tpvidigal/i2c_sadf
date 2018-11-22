@@ -11,6 +11,9 @@ report :
 
 gen_pdf: 
 	@pdflatex ${filename}.tex
+	@bibtex   ${filename}||true
+	@pdflatex ${filename}.tex
+	@pdflatex ${filename}.tex
 
 clean:
 	rm -f ${filename}.ps
